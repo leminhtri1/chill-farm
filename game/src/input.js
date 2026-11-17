@@ -8,7 +8,7 @@ export function createInput(canvas, view) {
     presses: [],
     clicks: [],
     wheel: 0,
-    mouse: { x: -1, y: -1, inside: false },
+    mouse: { x: -1, y: -1, inside: false, down: false },
     firstGesture: false,
   };
 
@@ -39,9 +39,14 @@ export function createInput(canvas, view) {
   });
   canvas.addEventListener('mouseleave', () => {
     input.mouse.inside = false;
+    input.mouse.down = false;
+  });
+  window.addEventListener('mouseup', () => {
+    input.mouse.down = false;
   });
   canvas.addEventListener('mousedown', (event) => {
     input.firstGesture = true;
+    if (event.button === 0) input.mouse.down = true;
     const p = toLogical(event);
     input.mouse.x = p.x;
     input.mouse.y = p.y;

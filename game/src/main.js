@@ -183,6 +183,21 @@ function handleFarmInput(presses, clicks, wheel) {
   }
 }
 
+/** Holding the mouse button and sweeping over plots in reach acts on each one once. */
+let sweptTile = '';
+function sweepWithMouse(game) {
+  if (!input.mouse.down || app.ui || game.player.action > 0) {
+    if (!input.mouse.down) sweptTile = '';
+    return;
+  }
+  const tile = tileOf(input.mouse.x, input.mouse.y);
+  const key = `${tile.c},${tile.r}`;
+  if (!sweptTile) sweptTile = key; // the press itself was handled as a click
+  if (key === sweptTile) return;
+  sweptTile = key;
+  if (plotAt(game, tile.c, tile.r) && inReach(game, tile.c, tile.r)) actAt(tile.c, tile.r);
+}
+
 function handlePanelInput(presses, clicks) {
   for (const key of presses) {
     if ((key === 'h' || key === 'H') && app.ui.kind === 'help') return closePanel();
@@ -301,6 +316,7 @@ function update(dt) {
     return;
   }
   handleFarmInput(presses, clicks, wheel);
+  sweepWithMouse(game);
   if (app.screen !== 'play' || app.ui) {
     applyEvents(game, app.fx);
     return;

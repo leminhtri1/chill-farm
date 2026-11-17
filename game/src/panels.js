@@ -200,7 +200,7 @@ function drawBoardPanel(ctx, game, t) {
 
 const HELP_LINES = [
   ['Move', 'WASD or arrow keys, or click a tile to walk there'],
-  ['Act', 'Space / E on the tile you face, or click it: till, plant, water, harvest'],
+  ['Act', 'Space / E or click a tile: till, plant, water, harvest. Hold and sweep for rows'],
   ['Seeds', '1-6, Q / R or the mouse wheel pick seeds or a sprinkler'],
   ['Water', 'Thirsty crops show a drop. Refill your can at the well'],
   ['Sell', 'Visit the market stall: sell, buy seeds and upgrades'],

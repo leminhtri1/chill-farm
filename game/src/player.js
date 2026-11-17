@@ -45,7 +45,7 @@ export function movePlayer(game, axis, dt) {
     const dy = at.y - (p.y + 6);
     const centre = tileCenter(p.target.c, p.target.r);
     const isPlot = at.x === centre.x && at.y === centre.y;
-    if ((isPlot && Math.hypot(dx, dy) <= PLAYER.reach - 18) || (!isPlot && inReach(game, p.target.c, p.target.r) && Math.hypot(dx, dy) < 30)) {
+    if ((isPlot && Math.hypot(dx, dy) <= 26) || (!isPlot && inReach(game, p.target.c, p.target.r) && Math.hypot(dx, dy) < 30)) {
       faceToward(p, centre.x - p.x, centre.y - (p.y + 6));
       result = 'arrived';
     } else {

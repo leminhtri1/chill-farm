@@ -28,7 +28,7 @@ export const PLAYER = {
   speed: 150,
   bootsSpeed: 205,
   /** How far (pixels from the farmer's centre to a tile's centre) an action can reach. */
-  reach: 74,
+  reach: 80,
   actionTime: 0.16,
 };
 
