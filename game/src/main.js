@@ -254,6 +254,7 @@ function continueFromDay() {
       saveBest(score);
     }
     app.screen = 'results';
+    app.fx = createEffects();
     play('fanfare');
     return;
   }
