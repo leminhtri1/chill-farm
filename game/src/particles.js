@@ -61,7 +61,7 @@ export function updateEffects(fx, dt, raining) {
   for (const t of fx.toasts) t.life -= dt;
   fx.toasts = fx.toasts.filter((t) => t.life > 0);
   if (raining) {
-    while (fx.rain.length < 140) fx.rain.push({ x: Math.random() * (VIEW.width + 200), y: Math.random() * -VIEW.height, s: 0.7 + Math.random() * 0.6 });
+    while (fx.rain.length < 260) fx.rain.push({ x: Math.random() * (VIEW.width + 200), y: Math.random() * -VIEW.height, s: 0.7 + Math.random() * 0.6 });
   }
   for (const d of fx.rain) {
     d.y += 520 * d.s * dt;
@@ -105,12 +105,12 @@ export function drawEffects(ctx, fx) {
 }
 
 export function drawRain(ctx, fx) {
-  ctx.strokeStyle = 'rgba(200, 225, 255, 0.55)';
-  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = 'rgba(214, 234, 255, 0.75)';
+  ctx.lineWidth = 2;
   ctx.beginPath();
   for (const d of fx.rain) {
     ctx.moveTo(d.x, d.y);
-    ctx.lineTo(d.x + 5 * d.s, d.y - 13 * d.s);
+    ctx.lineTo(d.x + 7 * d.s, d.y - 20 * d.s);
   }
   ctx.stroke();
 }

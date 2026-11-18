@@ -110,6 +110,17 @@ function drawPlot(ctx, game, plot, t) {
     ctx.ellipse(x + 16, y + 34, 5, 2, 0, 0, Math.PI * 2);
     ctx.fill();
   }
+  // rain makes little ripples splash on the wet soil
+  if (game.weather === 'rain') {
+    for (let i = 0; i < 2; i += 1) {
+      const p = (t * 0.9 + plot.c * 0.37 + plot.r * 0.61 + i * 0.5) % 1;
+      ctx.strokeStyle = `rgba(200, 228, 255, ${0.7 * (1 - p)})`;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.ellipse(x + 14 + i * 20, y + 36 - i * 20, 3 + p * 8, 1.5 + p * 3.5, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
   // a thirsty crop shows a little drop bubble
   if (plot.crop && !plot.crop.ripe && plot.crop.water <= 0) {
     const b = Math.sin(t * 4 + plot.c) * 2;
@@ -220,8 +231,14 @@ function drawHover(ctx, hover) {
 
 function drawLight(ctx, game, night, t) {
   if (game.weather === 'rain') {
-    ctx.fillStyle = 'rgba(60, 80, 120, 0.22)';
+    // a cool, grey-blue rainy light with darker clouds drifting at the top
+    ctx.fillStyle = 'rgba(52, 74, 124, 0.34)';
     ctx.fillRect(0, 0, VIEW.width, VIEW.height);
+    const cloud = ctx.createLinearGradient(0, 0, 0, 220);
+    cloud.addColorStop(0, 'rgba(40, 52, 84, 0.45)');
+    cloud.addColorStop(1, 'rgba(40, 52, 84, 0)');
+    ctx.fillStyle = cloud;
+    ctx.fillRect(0, 0, VIEW.width, 220);
   }
   // late afternoon: warm golden-hour light slanting in from the setting sun (top right)
   const golden = goldenHour(game.clock);

@@ -15,8 +15,10 @@ export function drawPlayOverlays(game, hover) {
     panel(ctx, VIEW.width / 2 - w / 2, 100, w, 32, 'rgba(255, 233, 160, 0.97)', 16);
     text(ctx, `Tip: ${tip}`, VIEW.width / 2, 116.5, { size: 15, align: 'center', color: '#6a3a10' });
   }
-  drawComboBadge(game);
-  if (hover) {
+  const comboShowing = drawComboBadge(game);
+  if (comboShowing) {
+    // the badge sits where the hint would go
+  } else if (hover) {
     const hint = describeTile(game, hover.c, hover.r);
     drawActionHint(ctx, hover.near ? `Click: ${hint}` : `Walk to: ${hint}`, input.mouse.x, input.mouse.y + 22);
   } else if (!game.player.moving) {
@@ -33,7 +35,7 @@ export function drawPlayOverlays(game, hover) {
 /** Quick harvests in a row: a bouncy "x5 COMBO!" over the farmer while the combo window is open. */
 function drawComboBadge(game) {
   const combo = game.combo;
-  if (combo.count < 2 || combo.timer <= 0) return;
+  if (combo.count < 2 || combo.timer <= 0) return false;
   const p = game.player;
   const pop = 1 + Math.max(0, combo.timer - 1.8) * 0.8;
   ctx.save();
@@ -51,4 +53,5 @@ function drawComboBadge(game) {
   ctx.fillStyle = combo.count >= 5 ? '#ffe066' : '#ffb347';
   ctx.fillText(label, 0, 0);
   ctx.restore();
+  return true;
 }

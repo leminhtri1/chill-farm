@@ -23,16 +23,17 @@ export function applyEvents(game, fx) {
       case 'harvest':
         burst(fx, e.x, e.y, 'leaf', 8);
         burst(fx, e.x, e.y, 'star', 4);
-        floatText(fx, e.x, e.y - 20, e.text);
+        if (game.combo.count < 3) floatText(fx, e.x, e.y - 20, e.text);
         play('harvest');
         break;
       case 'perfect':
         burst(fx, e.x, e.y, 'star', 12);
-        floatText(fx, e.x, e.y - 20, e.text, '#ffe066');
+        // during a combo run the big badge does the talking, so the field stays readable
+        if (game.combo.count < 3) floatText(fx, e.x, e.y - 20, e.text, '#ffe066');
         play('perfect');
         break;
       case 'combo':
-        floatText(fx, e.x, e.y, e.text, '#ffb347');
+        // the big combo badge over the farmer shows the count, so no extra floating text here
         play('combo');
         break;
       case 'golden':
