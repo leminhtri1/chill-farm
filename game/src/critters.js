@@ -1,6 +1,7 @@
 // Crows that sneak in to peck at crops (shoo them with a click or by walking up), and butterflies
 // that drift over the flowers just to be pretty.
-import { CROPS, CROWS, VIEW } from './config.js';
+import { CROPS, CROWS, RESTORE, VIEW } from './config.js';
+import { hasPerk } from './skills.js';
 import { earn } from './market.js';
 import { flockSize } from './challenges.js';
 import { emit, forEachPlot, tileCenter } from './state.js';
@@ -12,7 +13,9 @@ export function updateCrows(game, dt) {
     game.crowTimer -= dt;
     if (game.crowTimer <= 0) {
       // crows grow bolder as the season goes on
-      game.crowTimer = CROWS.interval[level] * (1.1 - game.day * 0.04) * game.rng.range(0.7, 1.3);
+      // the ducks on a clean pond keep many of them away
+      const ducks = game.restored.pond ? RESTORE.pondCrows : 1;
+      game.crowTimer = CROWS.interval[level] * ducks * (1.1 - game.day * 0.04) * game.rng.range(0.7, 1.3);
       const flock = flockSize(game);
       for (let i = 0; i < flock; i += 1) spawnCrow(game, i);
     }
@@ -30,7 +33,7 @@ export function updateCrows(game, dt) {
         crow.y = crow.ty;
         if (crow.state === 'in') {
           crow.state = 'peck';
-          crow.timer = CROWS.peck[level];
+          crow.timer = CROWS.peck[level] * (hasPerk(game, 'crows') ? 1.4 : 1);
           emit(game, 'caw', crow.x, crow.y);
         } else {
           crow.gone = true;

@@ -1,10 +1,11 @@
 // The season's growing challenge: a daily coin goal that rises each morning, timed rush orders from
 // the neighbours that come more often as the festival nears, and crows that grow bolder.
-import { CROPS, CROWS, DAILY, RUSH } from './config.js';
+import { CROPS, CROWS, DAILY, RUSH, SKILLS, VILLAGER_ORDER, VILLAGERS } from './config.js';
 import { earn, takeFromBasket } from './market.js';
+import { addXp } from './skills.js';
 import { emit, forEachPlot } from './state.js';
+import { friendPay, orderFilled } from './villagers.js';
 
-const RUSH_NEIGHBOURS = ['Granny Fern', 'Baker Bo', 'Little Pip', 'Chef Marlo', 'Auntie Juniper', 'Mayor Wren'];
 
 /** The day's coin goal, rounded to tens. */
 export function dailyGoal(day) {
@@ -62,13 +63,15 @@ function makeRush(game) {
   const kind = game.rng.pick(kinds);
   const qty = Math.max(1, Math.min(RUSH.maxQty, Math.floor(have[kind] * 0.6), 1 + Math.floor(game.day / 3)));
   const seconds = RUSH.seconds + RUSH.perItem * qty;
+  const friend = game.rng.pick(VILLAGER_ORDER);
   return {
     kind,
     qty,
     reward: Math.round(qty * CROPS[kind].price * RUSH.markup + RUSH.tip),
     timer: seconds,
     total: seconds,
-    from: game.rng.pick(RUSH_NEIGHBOURS),
+    friend,
+    from: VILLAGERS[friend].name,
   };
 }
 
@@ -84,11 +87,14 @@ export function fillRush(game) {
     return false;
   }
   takeFromBasket(game, rush.kind, rush.qty);
-  earn(game, rush.reward);
+  const pay = friendPay(game, rush.friend, rush.reward);
+  earn(game, pay);
   game.stats.orders += 1;
   game.stats.rushFilled += 1;
   game.rush = null;
-  emit(game, 'order', 0, 0, `Rush delivered! ${rush.from} paid ${rush.reward} coins`);
+  addXp(game, SKILLS.xp.order);
+  emit(game, 'order', 0, 0, `Rush delivered! ${rush.from} paid ${pay} coins`);
+  orderFilled(game, rush.friend);
   return true;
 }
 

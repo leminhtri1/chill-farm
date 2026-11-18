@@ -13,6 +13,7 @@ export function burst(fx, x, y, kind, count) {
     star: { colors: ['#fff6a8', '#ffcf40', '#ffffff'], speed: 120, up: 140, size: 3, life: 0.8, gravity: 200 },
     coin: { colors: ['#ffcf40', '#f2b632'], speed: 140, up: 220, size: 4, life: 0.9, gravity: 520 },
     feather: { colors: ['#3a3550', '#4b4566'], speed: 80, up: 60, size: 3, life: 1, gravity: 80 },
+    heart: { colors: ['#ff5d7a', '#ff8fa8', '#ffc2d0'], speed: 70, up: 120, size: 4, life: 1, gravity: 90 },
   }[kind];
   for (let i = 0; i < count; i += 1) {
     const a = Math.random() * Math.PI * 2;

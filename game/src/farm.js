@@ -1,8 +1,11 @@
 // The field rules: tilling, planting, watering, growing, sprinklers and harvesting.
 import {
-  CAN_CAPACITY, COMBO, COMPOST_SPEED, CROPS, GOLDEN, PERFECT_DRY_LIMIT, PLACES, SPRINKLER, WATER_SECONDS,
+  CAN_CAPACITY, COMBO, COMPOST_SPEED, CROPS, GOLDEN, LANDMARKS, PERFECT_DRY_LIMIT, PLACES, SKILLS, SPRINKLER, VILLAGERS, WATER_SECONDS,
 } from './config.js';
 import { earn } from './market.js';
+import { reachable } from './restoration.js';
+import { addXp, hasPerk } from './skills.js';
+import { villagerAt } from './villagers.js';
 import { emit, forEachPlot, plotAt, selectedItem, tileCenter } from './state.js';
 
 export const STAGES = 4;
@@ -17,11 +20,20 @@ export function isWet(plot) {
   return plot.crop ? plot.crop.water > 0 : plot.wet > 0;
 }
 
-/** What a tile is: the house door, well, stall, board, a plot, or nothing to do. */
+/**
+ * What a tile is: the house door, well, stall, board, workshop, a landmark to restore
+ * ('landmark:pond'), a villager ('villager:fern'), a plot, or nothing to do.
+ */
 export function placeAt(game, c, r) {
   const inside = (p) => c >= p.c && c < p.c + (p.w ?? 1) && r >= p.r && r < p.r + (p.h ?? 1);
+  const friend = villagerAt(game, c, r);
+  if (friend) return `villager:${friend}`;
   if (inside(PLACES.house) || (c === PLACES.door.c && r === PLACES.door.r)) return 'house';
-  if (inside(PLACES.well) || inside(PLACES.pond)) return 'well';
+  if (inside(PLACES.workshop)) return 'workshop';
+  if (inside(PLACES.pond)) return game.restored.pond ? 'well' : 'landmark:pond';
+  if (inside(PLACES.bridge) && !game.restored.bridge) return 'landmark:bridge';
+  if (inside(PLACES.bakery)) return game.restored.bakery ? 'bakery' : 'landmark:bakery';
+  if (inside(PLACES.well)) return 'well';
   if (inside(PLACES.stall)) return 'stall';
   if (inside(PLACES.board)) return 'board';
   if (plotAt(game, c, r)) return 'plot';
@@ -46,7 +58,12 @@ export function actOnTile(game, c, r) {
     emit(game, 'refill', at.x, at.y, 'Refilled!');
     return 'refill';
   }
-  if (place === 'stall' || place === 'board' || place === 'house') return place;
+  if (place === 'bakery') {
+    emit(game, 'note', at.x, at.y, 'Fresh bread! Jars sell for more');
+    return 'none';
+  }
+  if (place === 'stall' || place === 'board' || place === 'house' || place === 'workshop') return place;
+  if (place && (place.startsWith('landmark:') || place.startsWith('villager:'))) return place;
   if (place !== 'plot') return 'none';
 
   const plot = plotAt(game, c, r);
@@ -122,6 +139,7 @@ function harvest(game, plot) {
   game.basket[crop.kind] += 1;
   if (perfect) game.perfectBasket[crop.kind] += 1;
   game.stats.harvested += 1;
+  addXp(game, SKILLS.xp.harvest);
   if (perfect) game.stats.perfect += 1;
   emit(game, perfect ? 'perfect' : 'harvest', at.x, at.y, perfect ? `Perfect ${info.name}!` : `+1 ${info.name}`);
   // quick harvests in a row build a combo that tips a few coins
@@ -161,6 +179,13 @@ export function describeTile(game, c, r) {
   if (place === 'stall') return "Open Hazel's market";
   if (place === 'board') return 'Read the order board';
   if (place === 'house') return 'Sleep until morning';
+  if (place === 'workshop') return 'Open the preserves workshop';
+  if (place === 'bakery') return "Bo's bakery";
+  if (place && place.startsWith('villager:')) return `Talk to ${VILLAGERS[place.slice(9)].name}`;
+  if (place && place.startsWith('landmark:')) {
+    const id = place.slice(9);
+    return reachable(game, id) ? `${LANDMARKS[id].job}` : `${LANDMARKS[id].job} (fix the bridge first)`;
+  }
   if (place !== 'plot') return null;
   const plot = plotAt(game, c, r);
   if (!plot.tilled) return 'Till the soil';
@@ -178,7 +203,7 @@ export function describeTile(game, c, r) {
 
 /** Grow every crop one step: watered crops grow, dry ones wait (and stop being Perfect). */
 export function updateField(game, dt) {
-  const speed = COMPOST_SPEED[game.levels.compost];
+  const speed = COMPOST_SPEED[game.levels.compost] * (hasPerk(game, 'green') ? 1.15 : 1);
   const raining = game.weather === 'rain';
   game.combo.timer = Math.max(0, game.combo.timer - dt);
   forEachPlot(game, (plot) => {
@@ -205,7 +230,7 @@ export function updateField(game, dt) {
         crop.ripe = true;
         crop.wiggle = 1;
         // now and then a crop ripens golden: it glows in the field until harvested
-        crop.golden = game.rng.chance(GOLDEN.chance);
+        crop.golden = game.rng.chance(GOLDEN.chance * (hasPerk(game, 'golden') ? 2 : 1));
         const at = tileCenter(plot.c, plot.r);
         emit(game, crop.golden ? 'ripe-golden' : 'ripe', at.x, at.y, crop.golden ? `A golden ${CROPS[crop.kind].name} ripened!` : '');
       } else if (cropStage(crop) !== before) {

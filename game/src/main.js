@@ -6,7 +6,10 @@ import { update } from './game-update.js';
 import { openPanel } from './panels.js';
 import { render } from './render.js';
 import { nightAmount } from './scene.js';
+import { freeKettle } from './preserves.js';
+import { canDonate } from './restoration.js';
 import { newSeason } from './season-flow.js';
+import { giftOptions } from './villagers.js';
 
 function resize() {
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -55,4 +58,4 @@ resize();
 requestAnimationFrame(frame);
 
 /** For automated play-testing: read the state, and step the clock without waiting. */
-window.chillFarm = { app, newSeason, update, step: (seconds) => { for (let i = 0; i < seconds / STEP; i += 1) update(STEP); } };
+window.chillFarm = { app, newSeason, update, depth: { canDonate, freeKettle, giftOptions }, step: (seconds) => { for (let i = 0; i < seconds / STEP; i += 1) update(STEP); } };

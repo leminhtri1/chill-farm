@@ -2,6 +2,8 @@
 import {
   CAN_CAPACITY, CROP_ORDER, CROPS, HOT_PICK_BONUS, PERFECT_BONUS, SEASON, SPRINKLER, UPGRADES,
 } from './config.js';
+import { takeJarsForSale } from './preserves.js';
+import { hasPerk } from './skills.js';
 import { emit } from './state.js';
 
 /** What one crop sells for today at the stall. */
@@ -9,6 +11,7 @@ export function sellPrice(game, kind, perfect) {
   let price = CROPS[kind].price;
   if (game.hotPick === kind) price *= HOT_PICK_BONUS;
   if (perfect) price *= PERFECT_BONUS;
+  if (hasPerk(game, 'haggle')) price *= 1.1;
   return Math.round(price);
 }
 
@@ -45,7 +48,7 @@ export function earn(game, amount) {
   }
 }
 
-/** Sell every crop of one kind (or all kinds when kind is null). Returns coins made. */
+/** Sell every crop and jar of one kind (or all kinds when kind is null). Returns coins made. */
 export function sellBasket(game, kind) {
   let made = 0;
   for (const k of kind ? [kind] : CROP_ORDER) {
@@ -55,6 +58,7 @@ export function sellBasket(game, kind) {
     game.basket[k] = 0;
     game.perfectBasket[k] = 0;
   }
+  made += takeJarsForSale(game, kind);
   if (made > 0) {
     earn(game, made);
     emit(game, 'sell', 0, 0, `+${made} coins`);
@@ -63,13 +67,15 @@ export function sellBasket(game, kind) {
 }
 
 export function seedAvailable(game, kind) {
-  return game.day >= CROPS[kind].unlockDay;
+  const info = CROPS[kind];
+  return game.day >= info.unlockDay && (!info.landmark || !!(game.restored && game.restored[info.landmark]));
 }
 
 export function buySeeds(game, kind, count) {
   const cost = CROPS[kind].seed * count;
   if (!seedAvailable(game, kind)) {
-    emit(game, 'error', 0, 0, `${CROPS[kind].name} arrives on day ${CROPS[kind].unlockDay}`);
+    const info = CROPS[kind];
+    emit(game, 'error', 0, 0, info.landmark && game.day >= info.unlockDay ? `${info.name} seeds come once the bridge is fixed` : `${info.name} arrives on day ${info.unlockDay}`);
     return false;
   }
   if (game.coins < cost) {
@@ -123,6 +129,19 @@ export function buyUpgrade(game, key) {
   if (key === 'can') game.water = CAN_CAPACITY[game.levels.can];
   emit(game, 'upgrade', 0, 0, `${UPGRADES[key].name} upgraded!`);
   return true;
+}
+
+/**
+ * A farmer who gave everything away is never stuck: with no coins, seeds, crops or jars left, Hazel
+ * spots them a few turnip seeds in the morning.
+ */
+export function helpingHand(game) {
+  const growing = game.plots.some((plot) => plot && plot.crop);
+  const seeds = CROP_ORDER.some((kind) => game.seeds[kind] > 0);
+  const goods = CROP_ORDER.some((kind) => game.basket[kind] > 0 || game.goods[kind] > 0);
+  if (growing || seeds || goods || game.coins >= CROPS.turnip.seed * 3) return;
+  game.seeds.turnip += 4;
+  emit(game, 'buy', 0, 0, 'Hazel left you 4 turnip seeds. Plant them!');
 }
 
 /** Pick the day's Hot Pick among the crops on sale, never the same twice in a row. */

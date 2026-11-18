@@ -7,14 +7,20 @@ import { drawButterfly, drawCrow } from './critter-art.js';
 import { drawCrop } from './crop-art.js';
 import { PALETTE, roundRect } from './draw-kit.js';
 import { drawFarmer } from './farmer-art.js';
-import { drawFlower, drawHedge, drawPond, drawTree } from './nature-art.js';
+import { drawFlower, drawHedge, drawTree } from './nature-art.js';
+import { drawBakery, drawBridge, drawCreek, drawPondLandmark, drawRestoreMarker } from './landmark-art.js';
+import { drawVillager } from './villager-art.js';
+import { drawWorkshop } from './workshop-art.js';
 import { canFillRush } from './challenges.js';
-import { COLS, PLACES, ROWS, TILE, VIEW, WORLD_Y } from './config.js';
+import { COLS, CROP_ORDER, LANDMARK_ORDER, PLACES, PRESERVES, ROWS, TILE, VIEW, VILLAGER_ORDER, WORLD_Y } from './config.js';
 import { cropStage, isWet } from './farm.js';
 import { canFill } from './orders.js';
 import { drawRain } from './particles.js';
 import { createRandom } from './random.js';
-import { inField, inFutureField, plotAt, T_HEDGE, T_PATH } from './state.js';
+import { busyKettles } from './preserves.js';
+import { landmarkCentre, reachable, restoreProgress } from './restoration.js';
+import { CREEK_C, inField, inFutureField, plotAt, T_HEDGE, T_PATH } from './state.js';
+import { villagerSpot } from './villagers.js';
 
 let groundCache = null;
 let groundKey = '';
@@ -76,6 +82,7 @@ function ground(game) {
       }
     }
   }
+  drawCreek(ctx, CREEK_C * TILE, 4 * TILE + WORLD_Y, TILE, 6);
   for (let r = 0; r < ROWS; r += 1) {
     for (let c = 0; c < COLS; c += 1) {
       if (game.terrain[r][c] === T_HEDGE) drawHedge(ctx, c * TILE, r * TILE + WORLD_Y - 6, TILE, c * 7 + r * 3);
@@ -152,13 +159,24 @@ function standing(game, t, night) {
   list.push({ y: board.y + TILE, draw: (ctx) => drawBoard(ctx, board.x, board.y + 4, t, ready) });
   const well = at(PLACES.well);
   list.push({ y: well.y + TILE, draw: (ctx) => drawWell(ctx, well.x, well.y + 2) });
+  const shop = at(PLACES.workshop);
+  const jars = CROP_ORDER.filter((kind) => game.goods[kind] > 0).map((kind) => PRESERVES.colors[kind]);
+  const busy = busyKettles(game) > 0;
+  list.push({ y: shop.y + PLACES.workshop.h * TILE, draw: (ctx) => drawWorkshop(ctx, shop.x, shop.y, PLACES.workshop.w * TILE, PLACES.workshop.h * TILE, t, busy, jars) });
+  const bakery = at(PLACES.bakery);
+  list.push({ y: bakery.y + PLACES.bakery.h * TILE, draw: (ctx) => drawBakery(ctx, bakery.x, bakery.y, PLACES.bakery.w * TILE, PLACES.bakery.h * TILE, t, game.restored.bakery) });
+  for (const id of VILLAGER_ORDER) {
+    const spot = villagerSpot(game, id);
+    const v = { x: (spot.c + 0.5) * TILE, y: (spot.r + 0.5) * TILE + WORLD_Y - 4 };
+    list.push({ y: v.y + 20, draw: (ctx) => drawVillager(ctx, id, v.x, v.y, t, game.friends[id].hearts) });
+  }
   const compost = at(PLACES.compost);
   list.push({ y: compost.y + TILE, draw: (ctx) => drawCompost(ctx, compost.x, compost.y, game.levels.compost) });
   if (game.levels.scarecrow > 0) {
     const s = at(PLACES.scarecrow);
     list.push({ y: s.y + TILE, draw: (ctx) => drawScarecrow(ctx, s.x + TILE / 2, s.y + TILE / 2 - 2, game.levels.scarecrow, t) });
   }
-  for (const [tx, ty] of [[1.2, 4.6], [17.6, 5.2], [18.4, 6.4]]) {
+  for (const [tx, ty] of [[18.5, 7.1], [0.9, 7.2]]) {
     list.push({ y: ty * TILE + WORLD_Y + 20, draw: (ctx) => drawTree(ctx, tx * TILE, ty * TILE + WORLD_Y, 52, t) });
   }
   for (const plot of game.plots) {
@@ -201,7 +219,8 @@ export function goldenHour(clock) {
 export function drawScene(ctx, game, t, hover) {
   ctx.drawImage(ground(game), 0, 0);
   const pond = PLACES.pond;
-  drawPond(ctx, pond.c * TILE, pond.r * TILE + WORLD_Y, pond.w * TILE, pond.h * TILE, t);
+  drawPondLandmark(ctx, pond.c * TILE, pond.r * TILE + WORLD_Y, pond.w * TILE, pond.h * TILE, t, game.restored.pond);
+  drawBridge(ctx, PLACES.bridge.c * TILE, PLACES.bridge.r * TILE + WORLD_Y, TILE, t, game.restored.bridge);
   for (const plot of game.plots) if (plot && inField(game, plot.c, plot.r)) drawPlot(ctx, game, plot, t);
   // untouched field tiles show their dashed outline too
   for (let r = 0; r < ROWS; r += 1) {
@@ -214,6 +233,17 @@ export function drawScene(ctx, game, t, hover) {
   for (const item of standing(game, t, night > 0.3)) item.draw(ctx);
   for (const b of game.butterflies) drawButterfly(ctx, b.x, b.y, b.hue, b.t);
   drawLight(ctx, game, night, t);
+  drawRestoreMarkers(ctx, game, t);
+}
+
+/** A hammer bubble over each landmark still waiting to be restored. */
+function drawRestoreMarkers(ctx, game, t) {
+  for (const id of LANDMARK_ORDER) {
+    if (game.restored[id]) continue;
+    const at = landmarkCentre(id);
+    const lift = id === 'bridge' ? 34 : 56;
+    drawRestoreMarker(ctx, at.x, at.y - lift, restoreProgress(game, id), t + at.x, !reachable(game, id));
+  }
 }
 
 function drawHover(ctx, hover) {

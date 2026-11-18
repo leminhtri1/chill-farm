@@ -34,14 +34,14 @@ export const PLAYER = {
 
 /**
  * The crops. growth: seconds of watered growing to ripen; regrow: seconds to fruit again after a
- * harvest (strawberries keep giving); unlockDay: the day the seed seller starts stocking it.
+ * harvest (strawberries keep giving); unlockDay: the day the seed seller starts stocking it; landmark: a restoration it also needs.
  */
 export const CROPS = {
   turnip: { name: 'Turnip', seed: 10, price: 24, growth: 18, regrow: 0, unlockDay: 1, color: '#e9d7f2' },
   carrot: { name: 'Carrot', seed: 20, price: 44, growth: 28, regrow: 0, unlockDay: 1, color: '#f28c28' },
   berry: { name: 'Sunberry', seed: 50, price: 22, growth: 30, regrow: 12, unlockDay: 2, color: '#ff4f6d' },
   pumpkin: { name: 'Pumpkin', seed: 60, price: 130, growth: 62, regrow: 0, unlockDay: 3, color: '#f6a23a' },
-  moonmelon: { name: 'Moonmelon', seed: 120, price: 250, growth: 96, regrow: 0, unlockDay: 5, color: '#9fd8ff' },
+  moonmelon: { name: 'Moonmelon', seed: 120, price: 250, growth: 96, regrow: 0, unlockDay: 3, landmark: 'bridge', color: '#9fd8ff' },
 };
 export const CROP_ORDER = ['turnip', 'carrot', 'berry', 'pumpkin', 'moonmelon'];
 
@@ -90,6 +90,10 @@ export const PLACES = {
   scarecrow: { c: 4, r: 6 },
   compost: { c: 17, r: 8 },
   start: { c: 6, r: 3 },
+  /** The preserves workshop, the creek bridge, and the bakery across the creek. */
+  workshop: { c: 1, r: 4, w: 3, h: 2 },
+  bridge: { c: 16, r: 6 },
+  bakery: { c: 17, r: 4, w: 2, h: 2 },
 };
 
 export const CROWS = {
@@ -135,4 +139,85 @@ export const WEATHER = {
   /** Chance of each weather on a new day (after day 1, which is always sunny). */
   rainChance: 0.24,
   breezeChance: 0.26,
+};
+
+/**
+ * The preserves workshop: a kettle cooks a batch of one crop into jars that sell for `value` times
+ * the crop's price. Kettles keep cooking overnight. Each crop makes its own kind of jar.
+ */
+export const PRESERVES = {
+  kettles: 2,
+  maxKettles: 3,
+  batch: 5,
+  /** Game seconds a batch cooks, plus a little more for each crop in it. */
+  seconds: 26,
+  perItem: 4,
+  value: 1.6,
+  goods: { turnip: 'Turnip Pickles', carrot: 'Carrot Juice', berry: 'Sunberry Jam', pumpkin: 'Pumpkin Butter', moonmelon: 'Moonmelon Jam' },
+  colors: { turnip: '#c99ae0', carrot: '#ff9a3c', berry: '#e8395a', pumpkin: '#f0a040', moonmelon: '#7cc8f0' },
+};
+
+/**
+ * Village landmarks to restore by donating produce. Each need is a crop, or a jar of it (jar: true).
+ * Restoring one changes the map and unlocks something new.
+ */
+export const LANDMARKS = {
+  pond: {
+    name: 'Lily Pond',
+    job: 'Clean the pond',
+    needs: [{ kind: 'turnip', qty: 6 }, { kind: 'carrot', qty: 3 }],
+    unlock: 'Ducks come home and chase crows: half as many crows',
+  },
+  bridge: {
+    name: 'Creek Bridge',
+    job: 'Fix the bridge',
+    needs: [{ kind: 'carrot', qty: 5 }, { kind: 'berry', qty: 6 }],
+    unlock: 'The seed merchant crosses: Moonmelon seeds on sale',
+  },
+  bakery: {
+    name: 'Village Bakery',
+    job: 'Reopen the bakery',
+    needs: [{ kind: 'pumpkin', qty: 3 }, { kind: 'berry', qty: 4, jar: true }],
+    unlock: 'The baker buys preserves: every jar sells for 25% more',
+  },
+};
+export const LANDMARK_ORDER = ['pond', 'bridge', 'bakery'];
+/** What restoring pays out: the crow slow-down from the pond and the jar bonus from the bakery. */
+export const RESTORE = { pondCrows: 2, bakeryJars: 1.25 };
+
+/** Villagers who post orders, take gifts and grow fond of the farmer (hearts 0..max). */
+export const VILLAGERS = {
+  fern: { name: 'Granny Fern', likes: ['turnip', 'pumpkin'], hair: '#e8e4f0', shirt: '#9b7fd1', skin: '#f2c9a0', spot: { c: 3, r: 8 } },
+  bo: { name: 'Baker Bo', likes: ['berry', 'carrot'], hair: '#7a4a2a', shirt: '#f2f2f2', skin: '#d9a273', spot: { c: 13, r: 2 }, hat: true },
+  pip: { name: 'Little Pip', likes: ['carrot', 'moonmelon'], hair: '#f0b040', shirt: '#5fb2e8', skin: '#f6d2b0', spot: { c: 15, r: 8 }, small: true },
+};
+export const VILLAGER_ORDER = ['fern', 'bo', 'pip'];
+export const FRIENDS = {
+  maxHearts: 5,
+  /** Hearts for a liked crop, a liked jar, and every second filled order from that villager. */
+  crop: 1,
+  jar: 2,
+  order: 1,
+  /** A villager's orders pay this much more for each heart. */
+  orderBonus: 0.06,
+  /** A best friend (max hearts) sends a thank-you hamper worth this many coins. */
+  hamper: 120,
+};
+
+/** Farmer skill: experience from farm work, and the total needed for each level-up (pick a perk). */
+export const SKILLS = {
+  xp: { harvest: 1, batch: 3, donate: 2, gift: 3, order: 4, restore: 12 },
+  levels: [20, 55, 105, 170, 250, 350, 470],
+};
+
+/** The perks offered two at a time on a level-up. */
+export const PERKS = {
+  green: { name: 'Green Thumb', about: 'Crops grow 15% faster', icon: 'sprout' },
+  haggle: { name: 'Haggler', about: 'Crops sell for 10% more', icon: 'coin' },
+  jam: { name: 'Jam Master', about: 'Jars sell for 20% more', icon: 'jar' },
+  quick: { name: 'Quick Kettle', about: 'Preserves cook 40% faster', icon: 'clock' },
+  kettle: { name: 'Extra Kettle', about: 'One more kettle in the workshop', icon: 'kettle' },
+  golden: { name: 'Golden Touch', about: 'Golden crops twice as often', icon: 'star' },
+  crows: { name: 'Crow Charm', about: 'Crows peck 40% slower', icon: 'crow' },
+  sweet: { name: 'Sweet Talker', about: 'Gifts give one extra heart', icon: 'heart' },
 };

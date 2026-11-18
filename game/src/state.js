@@ -1,5 +1,5 @@
 // The game state: a fresh farm for a new season, and the map helpers every rule uses.
-import { CAN_CAPACITY, COLS, CROP_ORDER, FIELD_LEVELS, PLACES, ROWS, SEASON, TILE, WORLD_Y } from './config.js';
+import { CAN_CAPACITY, COLS, CROP_ORDER, FIELD_LEVELS, PLACES, PRESERVES, ROWS, SEASON, TILE, VILLAGER_ORDER, WORLD_Y } from './config.js';
 import { createRandom } from './random.js';
 
 /** Terrain kinds of the map's tiles. */
@@ -8,6 +8,8 @@ export const T_HEDGE = 1;
 export const T_PATH = 2;
 export const T_BUILDING = 3;
 export const T_WATER = 4;
+/** The column the creek runs down. */
+export const CREEK_C = 16;
 
 export function createGame(seed) {
   const rng = createRandom(seed);
@@ -48,7 +50,24 @@ export function createGame(seed) {
       stuck: 0,
     },
     combo: { count: 0, timer: 0 },
-    stats: { harvested: 0, perfect: 0, orders: 0, crows: 0, eaten: 0, bestDay: 0, dayEarned: 0, planted: 0, golden: 0, bestCombo: 0, dailyGoals: 0, rushFilled: 0, rushMissed: 0 },
+    stats: {
+      harvested: 0, perfect: 0, orders: 0, crows: 0, eaten: 0, bestDay: 0, dayEarned: 0, planted: 0, golden: 0, bestCombo: 0,
+      dailyGoals: 0, rushFilled: 0, rushMissed: 0, processed: 0, jarsSold: 0, donated: 0, gifts: 0,
+    },
+    /** Preserves: jars in the pantry by crop, and the workshop's kettles (null when empty). */
+    goods: { turnip: 0, carrot: 0, berry: 0, pumpkin: 0, moonmelon: 0 },
+    kettles: Array.from({ length: PRESERVES.maxKettles }, () => null),
+    /** Village restoration: what has been donated to each landmark, and which are restored. */
+    donated: { pond: {}, bridge: {}, bakery: {} },
+    restored: { pond: false, bridge: false, bakery: false },
+    /** Villagers: hearts and whether today's gift was given. */
+    friends: Object.fromEntries(VILLAGER_ORDER.map((id) => [id, { hearts: 0, gifted: false, hamper: false }])),
+    /** Farmer skill: experience, level, perks taken, and the two perks on offer after a level-up. */
+    xp: 0,
+    level: 1,
+    perks: [],
+    perkOffer: null,
+    pendingLevels: 0,
     /** Today's coin goal, the open rush order and when today's next rush orders arrive. */
     daily: null,
     rush: null,
@@ -87,6 +106,10 @@ function buildTerrain(game) {
   block(PLACES.well, T_BUILDING);
   block(PLACES.compost, T_BUILDING);
   block(PLACES.pond, T_WATER);
+  block(PLACES.workshop, T_BUILDING);
+  block(PLACES.bakery, T_BUILDING);
+  // the creek on the east side, crossed by the bridge once it is fixed
+  for (let r = 4; r <= 9; r += 1) t[r][CREEK_C] = T_WATER;
   game.terrain = t;
 }
 
@@ -120,6 +143,7 @@ export function forEachPlot(game, fn) {
 export function solidAt(game, c, r) {
   if (c < 0 || r < 0 || c >= COLS || r >= ROWS) return true;
   const kind = game.terrain[r][c];
+  if (game.restored.bridge && c === PLACES.bridge.c && r === PLACES.bridge.r) return false;
   if (kind === T_HEDGE || kind === T_BUILDING || kind === T_WATER) return true;
   if (game.levels.scarecrow > 0 && c === PLACES.scarecrow.c && r === PLACES.scarecrow.r) return true;
   return false;

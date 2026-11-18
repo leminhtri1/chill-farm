@@ -13,6 +13,7 @@ import { openPanel } from './panels.js';
 import { handlePanelInput } from './panel-controls.js';
 import { updateEffects } from './particles.js';
 import { movePlayer } from './player.js';
+import { updateKettles } from './preserves.js';
 import { continueFromDay, finishDay, goToTitle, newSeason } from './season-flow.js';
 
 function hitButton(click) {
@@ -61,6 +62,12 @@ function updateFarm(dt, presses, clicks, wheel) {
     updateEffects(app.fx, dt, game.weather === 'rain');
     return;
   }
+  // a level-up waits for the farmer to pick a perk
+  if (game.perkOffer) {
+    app.ui = openPanel('perk');
+    applyEvents(game, app.fx);
+    return;
+  }
   handleFarmInput(presses, clicks, wheel);
   sweepWithMouse(game);
   if (app.screen !== 'play' || app.ui) {
@@ -77,6 +84,7 @@ function updateFarm(dt, presses, clicks, wheel) {
   }
   updateField(game, sim);
   updateChallenges(game, sim);
+  updateKettles(game, sim);
   updateCrows(game, sim);
   updateButterflies(game, dt);
   applyEvents(game, app.fx);

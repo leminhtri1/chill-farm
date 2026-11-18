@@ -64,12 +64,15 @@ export function movePlayer(game, axis, dt) {
   const oy = p.y;
   if (!blocked(game, p.x + mx * step, p.y)) p.x += mx * step;
   if (!blocked(game, p.x, p.y + my * step)) p.y += my * step;
-  // Slide around a corner: when a walk-to is pushing into a wall on one axis, nudge along the other.
-  if (p.target && p.x === ox && p.y === oy) {
+  // Slide around a corner: when a walk-to is pushing into a wall (or the creek) on its main axis,
+  // walk along the other axis toward the target until the way opens, such as onto the bridge.
+  if (p.target && Math.hypot(p.x - ox, p.y - oy) < step * 0.5) {
     const sx = Math.sign(mx) || 1;
     const sy = Math.sign(my) || 1;
-    if (!blocked(game, p.x, p.y + sy * step)) p.y += sy * step;
-    else if (!blocked(game, p.x + sx * step, p.y)) p.x += sx * step;
+    const xBlocked = blocked(game, ox + mx * step, oy);
+    if (xBlocked && !blocked(game, p.x, p.y + sy * step)) p.y = oy + sy * step;
+    else if (!xBlocked && !blocked(game, p.x + sx * step, p.y)) p.x = ox + sx * step;
+    else if (!blocked(game, p.x + sx * step, p.y)) p.x = ox + sx * step;
   }
   const moved = Math.hypot(p.x - ox, p.y - oy);
   p.walk += moved * 0.09;
@@ -104,7 +107,7 @@ export function facingTile(game) {
 function buildingAt(c, r) {
   const inside = (p) => c >= p.c && c < p.c + (p.w ?? 1) && r >= p.r && r < p.r + (p.h ?? 1);
   if (inside(PLACES.house) || (c === PLACES.door.c && r === PLACES.door.r)) return PLACES.house;
-  for (const key of ['stall', 'board', 'well', 'pond']) if (inside(PLACES[key])) return PLACES[key];
+  for (const key of ['stall', 'board', 'well', 'pond', 'workshop', 'bakery', 'bridge']) if (inside(PLACES[key])) return PLACES[key];
   return null;
 }
 
@@ -113,6 +116,9 @@ export function standPoint(c, r) {
   const b = buildingAt(c, r);
   if (!b) return tileCenter(c, r);
   if (b === PLACES.pond) return { x: (b.c + b.w + 0.4) * TILE, y: (b.r + 1) * TILE + WORLD_Y };
+  // the workshop's door faces the path on its east side; the bridge is worked from the west bank
+  if (b === PLACES.workshop) return { x: (b.c + b.w + 0.45) * TILE, y: (b.r + 1) * TILE + WORLD_Y };
+  if (b === PLACES.bridge) return { x: (b.c - 0.5) * TILE, y: (b.r + 0.5) * TILE + WORLD_Y - 8 };
   return { x: (b.c + (b.w ?? 1) / 2) * TILE, y: (b.r + (b.h ?? 1) + 0.45) * TILE + WORLD_Y - 8 };
 }
 

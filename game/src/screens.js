@@ -1,11 +1,16 @@
-// The full-screen moments: the title over the golden-hour farm, the cosy end-of-day card, and the
-// Harvest Festival results under fireworks.
+// The full-screen moments: the title card over the golden-hour farm, the cosy end-of-day card, and
+// the Harvest Festival results under fireworks.
+import { drawProduce } from './crop-art.js';
 import { roundRect } from './draw-kit.js';
 import { drawCoin, drawRibbon } from './icon-art.js';
-import { SEASON, VIEW } from './config.js';
+import { CROP_ORDER, CROPS, LANDMARK_ORDER, PERKS, PLACES, PRESERVES, SEASON, TILE, VIEW, WORLD_Y } from './config.js';
 import { drawStar } from './challenge-hud.js';
 import { drawFestivalNight } from './festival-art.js';
-import { drawWeatherIcon, panel, text } from './hud.js';
+import { drawWeatherIcon, FONT, panel, text } from './hud.js';
+import { restoredCount } from './restoration.js';
+import { drawHeart, drawPerkIcon } from './villager-art.js';
+import { totalHearts } from './villagers.js';
+import { drawJar } from './workshop-art.js';
 
 export function ribbonFor(earned) {
   if (earned >= SEASON.goldGoal) return 'gold';
@@ -13,35 +18,58 @@ export function ribbonFor(earned) {
   return 'green';
 }
 
-/** The title screen over the golden-hour farm: a hanging sign, the goal and the Start button. */
+/** A small name tag pinned over a place on the title farm. */
+function tag(ctx, label, x, y, color = '#2f7a3a') {
+  ctx.font = `bold 14px ${FONT}`;
+  const w = ctx.measureText(label).width + 22;
+  panel(ctx, x - w / 2, y - 13, w, 26, 'rgba(255, 246, 224, 0.95)', 13);
+  text(ctx, label, x, y + 0.5, { size: 14, align: 'center', color });
+}
+
+/** The title card over the golden-hour farm: the sign, the goal, the five crops by name, Start. */
 export function drawTitle(ctx, t, best) {
   // gentle shade at the top and bottom so the words stay readable over the busy field
   const shade = ctx.createLinearGradient(0, 0, 0, VIEW.height);
-  shade.addColorStop(0, 'rgba(60, 30, 10, 0.32)');
-  shade.addColorStop(0.28, 'rgba(60, 30, 10, 0)');
-  shade.addColorStop(0.8, 'rgba(60, 30, 10, 0)');
-  shade.addColorStop(1, 'rgba(60, 30, 10, 0.5)');
+  shade.addColorStop(0, 'rgba(60, 30, 10, 0.3)');
+  shade.addColorStop(0.22, 'rgba(60, 30, 10, 0)');
+  shade.addColorStop(0.7, 'rgba(60, 30, 10, 0)');
+  shade.addColorStop(1, 'rgba(60, 30, 10, 0.55)');
   ctx.fillStyle = shade;
   ctx.fillRect(0, 0, VIEW.width, VIEW.height);
+  // what the farm behind the sign shows: the workshop and the restored village
+  const at = (p, dx, dy) => [(p.c + (p.w ?? 1) / 2) * TILE + dx, p.r * TILE + WORLD_Y + dy];
+  tag(ctx, 'Preserves Workshop', ...at(PLACES.workshop, 0, -26), '#8a3a2a');
+  tag(ctx, 'Pond restored', ...at(PLACES.pond, 6, -14));
+  tag(ctx, 'Bridge fixed', ...at(PLACES.bridge, -14, -30));
+  tag(ctx, 'Bakery reopened', ...at(PLACES.bakery, -30, -28));
   drawLogo(ctx, t);
 
-  const button = { x: VIEW.width / 2 - 120, y: 448, w: 240, h: 56 };
+  // the five crops, by name
+  panel(ctx, 168, 382, 668, 62, 'rgba(255, 246, 224, 0.94)', 18);
+  CROP_ORDER.forEach((kind, i) => {
+    const x = 180 + i * 131;
+    drawProduce(ctx, kind, x + 16, 404, 32, t);
+    text(ctx, CROPS[kind].name, x + 38, 414, { size: 16, color: '#4a3428' });
+  });
+
+  const button = { x: VIEW.width / 2 - 110, y: 458, w: 220, h: 54 };
   const pulse = 1 + Math.sin(t * 4) * 0.03;
   ctx.save();
   ctx.translate(VIEW.width / 2, button.y + button.h / 2);
   ctx.scale(pulse, pulse);
-  panel(ctx, -120, -28, 240, 56, '#7fcf6e', 28);
-  text(ctx, 'Start farming', 0, 1, { size: 24, align: 'center', color: '#1f4a24' });
+  panel(ctx, -110, -27, 220, 54, '#7fcf6e', 27);
+  text(ctx, 'Start farming', 0, 1, { size: 23, align: 'center', color: '#1f4a24' });
   ctx.restore();
 
-  panel(ctx, 24, 456, 300, 40, 'rgba(255, 246, 224, 0.95)', 20);
-  text(ctx, '10 days until the Harvest Festival', 174, 476.5, { size: 16, align: 'center' });
-  panel(ctx, 636, 456, 300, 40, 'rgba(255, 246, 224, 0.95)', 20);
-  drawRibbon(ctx, 664, 468, 16, 'blue');
-  text(ctx, `${SEASON.goal.toLocaleString('en')}`, 682, 476.5, { size: 17, color: '#2f5fa8' });
-  drawRibbon(ctx, 786, 468, 16, 'gold');
-  text(ctx, `${SEASON.goldGoal.toLocaleString('en')} coins`, 804, 476.5, { size: 17, color: '#a0660a' });
-  text(ctx, 'Click or press Enter  ·  H for how to play  ·  M to mute', VIEW.width / 2, 524, { size: 13, align: 'center', color: '#fff6e0' });
+  panel(ctx, 16, 458, 324, 54, 'rgba(255, 246, 224, 0.95)', 20);
+  drawRibbon(ctx, 40, 474, 16, 'blue');
+  text(ctx, `Goal: earn ${SEASON.goal.toLocaleString('en')} coins`, 60, 474, { size: 17, color: '#2f5fa8' });
+  text(ctx, 'in 10 days, before the Harvest Festival', 60, 496, { size: 13, color: '#7a5a44' });
+  panel(ctx, 620, 458, 324, 54, 'rgba(255, 246, 224, 0.95)', 20);
+  drawJar(ctx, 646, 494, 28, PRESERVES.colors.berry, 1);
+  text(ctx, 'Make jams, restore the', 666, 474, { size: 15, color: '#8a3a2a' });
+  text(ctx, 'village, make friends', 666, 496, { size: 15, color: '#8a3a2a' });
+  text(ctx, `Click or Enter to start  ·  H how to play  ·  M mute  ·  ${SEASON.goldGoal.toLocaleString('en')} coins for gold`, VIEW.width / 2, 528, { size: 12, align: 'center', color: '#fff6e0' });
   if (best > 0) {
     panel(ctx, 12, 10, 150, 34, 'rgba(255, 246, 224, 0.92)', 12);
     drawRibbon(ctx, 32, 22, 14, ribbonFor(best));
@@ -53,7 +81,8 @@ export function drawTitle(ctx, t, best) {
 /** The wooden "Chill Farm" sign hanging from two ropes, swaying a little. */
 function drawLogo(ctx, t) {
   ctx.save();
-  ctx.translate(VIEW.width / 2, 84 + Math.sin(t * 1.6) * 3);
+  ctx.translate(VIEW.width / 2, 72 + Math.sin(t * 1.6) * 2);
+  ctx.scale(0.86, 0.86);
   ctx.rotate(Math.sin(t * 0.8) * 0.012);
   ctx.strokeStyle = '#7a4a2a';
   ctx.lineWidth = 3;
@@ -79,7 +108,7 @@ function drawLogo(ctx, t) {
       ctx.restore();
     }
   }
-  ctx.font = `bold 66px "Trebuchet MS", "Segoe UI", sans-serif`;
+  ctx.font = 'bold 66px "Trebuchet MS", "Segoe UI", sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.lineJoin = 'round';
@@ -88,7 +117,7 @@ function drawLogo(ctx, t) {
   ctx.strokeText('Chill Farm', 0, -8);
   ctx.fillStyle = '#fff6e0';
   ctx.fillText('Chill Farm', 0, -8);
-  text(ctx, 'grow · water · harvest · relax', 0, 38, { size: 17, align: 'center', color: '#7a4a2a' });
+  text(ctx, 'grow · preserve · restore · befriend', 0, 38, { size: 18, align: 'center', color: '#7a4a2a' });
   ctx.restore();
 }
 
@@ -147,44 +176,95 @@ export function drawDaySummary(ctx, summary, game, t) {
   return button;
 }
 
-/** The Harvest Festival results: ribbon, score and stats. Returns the Play Again button. */
+/** The Harvest Festival results: ribbon, score, the season's depth and stats. Returns Play Again. */
 export function drawResults(ctx, game, best, isBest, t) {
   drawFestivalNight(ctx, t);
   const ribbon = ribbonFor(game.earned);
-  panel(ctx, VIEW.width / 2 - 300, 60, 600, 420, 'rgba(255, 246, 224, 0.98)', 22);
-  text(ctx, 'Harvest Festival Results', VIEW.width / 2, 98, { size: 30, align: 'center' });
-  drawRibbon(ctx, VIEW.width / 2 - 170, 170 + Math.sin(t * 2) * 3, 48, ribbon);
+  const cx = VIEW.width / 2;
+  panel(ctx, cx - 310, 26, 620, 488, 'rgba(255, 246, 224, 0.98)', 22);
+  text(ctx, 'Harvest Festival Results', cx, 58, { size: 28, align: 'center' });
+  drawRibbon(ctx, cx - 190, 118 + Math.sin(t * 2) * 3, 44, ribbon);
   const title = { gold: 'Gold Ribbon! Legendary farmer!', blue: 'Blue Ribbon! Festival winner!', green: 'Green Ribbon: a lovely first season' }[ribbon];
-  text(ctx, title, VIEW.width / 2 - 100, 150, { size: 20, color: ribbon === 'green' ? '#2f7a3a' : ribbon === 'blue' ? '#2f5fa8' : '#a0660a' });
-  text(ctx, 'Final score', VIEW.width / 2 - 100, 184, { size: 15, color: '#7a5a44', weight: 'normal' });
-  text(ctx, `${game.earned}`, VIEW.width / 2 - 100, 218, { size: 40 });
-  if (isBest) text(ctx, 'New best!', VIEW.width / 2 + 60, 220, { size: 18, color: '#c0471a' });
-  else text(ctx, `Best ${best}`, VIEW.width / 2 + 60, 220, { size: 16, color: '#7a5a44' });
+  text(ctx, title, cx - 120, 98, { size: 20, color: ribbon === 'green' ? '#2f7a3a' : ribbon === 'blue' ? '#2f5fa8' : '#a0660a' });
+  text(ctx, 'Final score', cx - 120, 128, { size: 14, color: '#7a5a44', weight: 'normal' });
+  text(ctx, `${game.earned}`, cx - 120, 158, { size: 38 });
+  if (isBest) text(ctx, 'New best!', cx + 40, 160, { size: 18, color: '#c0471a' });
+  else text(ctx, `Best ${best}`, cx + 40, 160, { size: 16, color: '#7a5a44' });
   if (ribbon !== 'gold') {
     const next = ribbon === 'green' ? SEASON.goal : SEASON.goldGoal;
-    text(ctx, `${next - game.earned} more for the ${ribbon === 'green' ? 'blue' : 'gold'} ribbon`, VIEW.width / 2 - 100, 252, { size: 14, color: '#7a5a44', weight: 'normal' });
+    text(ctx, `${next - game.earned} more for the ${ribbon === 'green' ? 'blue' : 'gold'} ribbon`, cx + 40, 132, { size: 13, color: '#7a5a44', weight: 'normal' });
+  }
+  // the season's depth: big tiles that read at a glance
+  const tiles = [
+    { label: 'goods processed', value: game.stats.processed, icon: (x, y) => drawJar(ctx, x, y + 16, 36, PRESERVES.colors.berry, 1) },
+    { label: 'landmarks restored', value: `${restoredCount(game)}/${LANDMARK_ORDER.length}`, icon: (x, y) => drawLandmarkBadge(ctx, x, y) },
+    { label: 'friendship hearts', value: totalHearts(game), icon: (x, y) => drawHeart(ctx, x, y, 30) },
+    { label: 'perks chosen', value: game.perks.length, icon: (x, y) => drawPerkIcon(ctx, 'star', x, y, 40, 0) },
+  ];
+  tiles.forEach((tile, i) => {
+    const x = cx - 296 + i * 148;
+    roundRect(ctx, x, 186, 140, 92, 14);
+    ctx.fillStyle = ['rgba(255, 214, 220, 0.7)', 'rgba(214, 240, 200, 0.8)', 'rgba(255, 220, 230, 0.8)', 'rgba(255, 233, 160, 0.75)'][i];
+    ctx.fill();
+    tile.icon(x + 34, 220);
+    text(ctx, `${tile.value}`, x + 62, 222, { size: 28 });
+    text(ctx, tile.label, x + 70, 262, { size: 13, align: 'center', color: '#5a4030' });
+  });
+  // the perks the farmer picked, as small icons
+  if (game.perks.length) {
+    text(ctx, 'Perks:', cx - 296, 300, { size: 13, color: '#7a5a44' });
+    // names fit for a few perks; a long list shows just the icons
+    const named = game.perks.length <= 4;
+    const step = named ? 132 : Math.min(60, 540 / game.perks.length);
+    game.perks.forEach((id, i) => {
+      const x = cx - 238 + i * step;
+      drawPerkIcon(ctx, PERKS[id].icon, x, 300, named ? 22 : 26, t);
+      if (named) text(ctx, PERKS[id].name, x + 16, 300, { size: 12, color: '#4a3428' });
+    });
   }
   const stats = [
     ['Crops harvested', game.stats.harvested],
-    ['Perfect crops', game.stats.perfect],
     ['Orders filled', game.stats.orders],
     ['Golden crops', game.stats.golden],
     ['Day goals met', `${game.stats.dailyGoals} / ${SEASON.days}`],
+    ['Gifts given', game.stats.gifts],
     ['Best combo', `x${game.stats.bestCombo}`],
   ];
   stats.forEach(([label, value], i) => {
-    const x = VIEW.width / 2 - 260 + (i % 2) * 270;
-    const y = 290 + Math.floor(i / 2) * 34;
-    roundRect(ctx, x, y - 14, 250, 28, 9);
+    const x = cx - 296 + (i % 2) * 300;
+    const y = 334 + Math.floor(i / 2) * 30;
+    roundRect(ctx, x, y - 12, 292, 25, 9);
     ctx.fillStyle = 'rgba(234, 211, 166, 0.55)';
     ctx.fill();
-    text(ctx, label, x + 12, y, { size: 14, weight: 'normal' });
-    text(ctx, `${value}`, x + 238, y, { size: 15, align: 'right' });
+    text(ctx, label, x + 12, y + 0.5, { size: 14, weight: 'normal' });
+    text(ctx, `${value}`, x + 280, y + 0.5, { size: 15, align: 'right' });
   });
-  const button = { x: VIEW.width / 2 - 120, y: 404, w: 240, h: 52 };
+  const button = { x: cx - 130, y: 428, w: 260, h: 52 };
   panel(ctx, button.x, button.y, button.w, button.h, '#7fcf6e', 26);
-  text(ctx, 'Play another season', VIEW.width / 2, button.y + 27, { size: 19, align: 'center', color: '#1f4a24' });
-  text(ctx, 'Enter / click to restart  ·  Esc for the title', VIEW.width / 2, 470, { size: 12, align: 'center', color: '#a08a70', weight: 'normal' });
+  text(ctx, 'Play another season', cx, button.y + 27, { size: 20, align: 'center', color: '#1f4a24' });
+  text(ctx, 'Enter / click to restart  ·  Esc for the title', cx, 498, { size: 12, align: 'center', color: '#a08a70', weight: 'normal' });
   return button;
 }
 
+/** A little hammer-and-house badge for the landmarks tile. */
+function drawLandmarkBadge(ctx, x, y) {
+  ctx.fillStyle = '#c8735a';
+  ctx.beginPath();
+  ctx.moveTo(x - 16, y);
+  ctx.lineTo(x, y - 15);
+  ctx.lineTo(x + 16, y);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#ffe3c8';
+  ctx.fillRect(x - 12, y, 24, 16);
+  ctx.fillStyle = '#9b6238';
+  ctx.fillRect(x - 4, y + 5, 8, 11);
+  ctx.save();
+  ctx.translate(x + 14, y + 6);
+  ctx.rotate(-0.7);
+  ctx.fillStyle = '#8a5a33';
+  ctx.fillRect(-2, -4, 4, 16);
+  ctx.fillStyle = '#7d8a96';
+  ctx.fillRect(-7, -9, 14, 6);
+  ctx.restore();
+}

@@ -115,6 +115,49 @@ export function applyEvents(game, fx) {
         toast(fx, e.text, 'bad');
         play('error');
         break;
+      case 'cook':
+        burst(fx, e.x, e.y, 'star', 8);
+        toast(fx, e.text, 'info');
+        play('buy');
+        break;
+      case 'jars':
+        burst(fx, e.x, e.y, 'star', 14);
+        floatText(fx, e.x, e.y - 30, e.text, '#ffe066');
+        play('ripe');
+        break;
+      case 'donate':
+        burst(fx, e.x, e.y, 'star', 10);
+        toast(fx, e.text, 'good');
+        play('order');
+        break;
+      case 'restored':
+        burst(fx, e.x, e.y, 'star', 40);
+        burst(fx, e.x, e.y, 'coin', 12);
+        toast(fx, e.text, 'gold');
+        play('goal');
+        break;
+      case 'gift':
+        toast(fx, e.text, 'good');
+        play('order');
+        break;
+      case 'heart':
+        burst(fx, e.x, e.y, 'heart', 10);
+        floatText(fx, e.x, e.y - 10, e.text, '#ff8fa8');
+        play('combo');
+        break;
+      case 'hamper':
+        burst(fx, e.x, e.y, 'coin', 16);
+        toast(fx, e.text, 'gold');
+        play('golden');
+        break;
+      case 'levelup':
+        burst(fx, e.x, e.y, 'star', 30);
+        play('daily');
+        break;
+      case 'perk':
+        toast(fx, e.text, 'gold');
+        play('upgrade');
+        break;
       case 'late':
         toast(fx, e.text, 'gold');
         play('late');

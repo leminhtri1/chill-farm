@@ -1,9 +1,10 @@
 // The village order board: neighbours ask for crops and pay well for them, for a few days only.
-import { CROPS, ORDERS } from './config.js';
+import { CROPS, ORDERS, SKILLS, VILLAGER_ORDER, VILLAGERS } from './config.js';
 import { seedAvailable, takeFromBasket, earn } from './market.js';
+import { addXp } from './skills.js';
 import { emit } from './state.js';
+import { friendPay, orderFilled } from './villagers.js';
 
-const NEIGHBOURS = ['Granny Fern', 'Baker Bo', 'Little Pip', 'Chef Marlo', 'Auntie Juniper', 'Mayor Wren', 'Old Tobin'];
 
 /** One new order, sized to the day: early days ask for a few cheap crops, later ones for more. */
 export function makeOrder(game) {
@@ -14,12 +15,14 @@ export function makeOrder(game) {
   const price = CROPS[kind].price;
   const want = Math.max(1, Math.round((game.rng.range(60, 110) + game.day * 22) / price));
   const qty = Math.min(want, price > 150 ? 3 : 10);
+  const friend = game.rng.pick(VILLAGER_ORDER);
   return {
     kind,
     qty,
     reward: Math.round(qty * price * ORDERS.markup + ORDERS.tip + game.day * 5),
     days: ORDERS.days,
-    from: game.rng.pick(NEIGHBOURS),
+    friend,
+    from: VILLAGERS[friend].name,
   };
 }
 
@@ -34,6 +37,11 @@ export function ageOrders(game) {
   refillOrders(game);
 }
 
+/** What an order pays today: its reward, plus a little for each heart of friendship. */
+export function orderPay(game, order) {
+  return friendPay(game, order.friend, order.reward);
+}
+
 export function canFill(game, order) {
   return game.basket[order.kind] >= order.qty;
 }
@@ -46,9 +54,12 @@ export function fillOrder(game, index) {
     return false;
   }
   takeFromBasket(game, order.kind, order.qty);
-  earn(game, order.reward);
+  const pay = orderPay(game, order);
+  earn(game, pay);
   game.stats.orders += 1;
   game.orders.splice(index, 1);
-  emit(game, 'order', 0, 0, `${order.from} paid ${order.reward} coins!`);
+  addXp(game, SKILLS.xp.order);
+  emit(game, 'order', 0, 0, `${order.from} paid ${pay} coins!`);
+  if (order.friend) orderFilled(game, order.friend);
   return true;
 }

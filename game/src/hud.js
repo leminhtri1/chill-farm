@@ -6,6 +6,8 @@ import { drawCoin, drawDrop, drawSprinklerIcon } from './icon-art.js';
 import { CAN_CAPACITY, CROPS, HOT_PICK_BONUS, SEASON, VIEW } from './config.js';
 import { clockText } from './calendar.js';
 import { basketCount, basketValue, seedAvailable } from './market.js';
+import { pantryCount } from './preserves.js';
+import { levelProgress } from './skills.js';
 import { hotbarItems } from './state.js';
 
 export const FONT = '"Trebuchet MS", "Segoe UI", "Verdana", sans-serif';
@@ -155,7 +157,42 @@ export function drawHud(ctx, game, t) {
   text(ctx, `worth ${basketValue(game)}c`, 840, 41, { size: 13, color: '#7a5a44' });
 
   drawHotPick(ctx, game);
+  drawLevel(ctx, game, t);
   drawHotbar(ctx, game, t);
+}
+
+/** The farmer's level and experience bar, and how many jars wait in the pantry. */
+function drawLevel(ctx, game, t) {
+  panel(ctx, 178, 62, 150, 30, 'rgba(255, 246, 224, 0.95)', 10);
+  ctx.fillStyle = '#ffcf40';
+  ctx.beginPath();
+  for (let i = 0; i < 10; i += 1) {
+    const a = -Math.PI / 2 + (i * Math.PI) / 5 + Math.sin(t) * 0.05;
+    const r = i % 2 ? 4.5 : 10;
+    ctx.lineTo(194 + Math.cos(a) * r, 77 + Math.sin(a) * r);
+  }
+  ctx.closePath();
+  ctx.fill();
+  text(ctx, `Lv ${game.level}`, 208, 77.5, { size: 14 });
+  roundRect(ctx, 246, 72, 72, 10, 5);
+  ctx.fillStyle = '#ead9b8';
+  ctx.fill();
+  const p = levelProgress(game);
+  if (p > 0) {
+    roundRect(ctx, 246, 72, Math.max(10, 72 * p), 10, 5);
+    ctx.fillStyle = '#b48cf0';
+    ctx.fill();
+  }
+  const jars = pantryCount(game);
+  if (jars > 0) {
+    panel(ctx, 336, 62, 92, 30, 'rgba(255, 233, 210, 0.95)', 10);
+    roundRect(ctx, 346, 68, 13, 17, 3);
+    ctx.fillStyle = '#e8395a';
+    ctx.fill();
+    ctx.fillStyle = '#e45b5b';
+    ctx.fillRect(344, 66, 17, 4);
+    text(ctx, `${jars} jars`, 368, 77.5, { size: 13, color: '#8a3a2a' });
+  }
 }
 
 function drawHotPick(ctx, game) {
@@ -206,7 +243,7 @@ function drawHotbar(ctx, game, t) {
     text(ctx, `${slot.index + 1}`, slot.x + 6, slot.y + 9, { size: 11, color: '#a07a5a' });
     if (locked) {
       const day = CROPS[slot.item.crop].unlockDay;
-      text(ctx, `Day ${day}`, cx, slot.y + slot.h - 8, { size: 10, align: 'center', color: '#a07a5a' });
+      text(ctx, game.day >= day && CROPS[slot.item.crop].landmark ? 'Bridge' : `Day ${day}`, cx, slot.y + slot.h - 8, { size: 10, align: 'center', color: '#a07a5a' });
     } else {
       ctx.font = `bold 14px ${FONT}`;
       ctx.textAlign = 'right';

@@ -1,9 +1,11 @@
 // The farm calendar: the clock through each day, the weather, and the morning after a night's sleep.
 import { SEASON, WEATHER } from './config.js';
 import { overnight } from './farm.js';
-import { rollHotPick } from './market.js';
+import { helpingHand, rollHotPick } from './market.js';
 import { ageOrders, refillOrders } from './orders.js';
 import { startChallenges } from './challenges.js';
+import { cookOvernight } from './preserves.js';
+import { newDayFriends } from './villagers.js';
 import { emit } from './state.js';
 
 /** Clock as hours (6.0 .. 22.0) for the HUD. */
@@ -73,12 +75,16 @@ export function startNextDay(game) {
   game.tomorrow = rollWeather(game);
   game.crows = [];
   overnight(game);
+  cookOvernight(game);
+  newDayFriends(game);
   rollHotPick(game);
+  helpingHand(game);
   ageOrders(game);
   startChallenges(game);
   const p = game.player;
-  p.x = 2.5 * 48;
-  p.y = 4 * 48 + 6;
+  // wake up on the path by the cottage door (the workshop stands just below it)
+  p.x = 3.5 * 48;
+  p.y = 3 * 48 + 20;
   p.dir = 'down';
   p.target = null;
 }

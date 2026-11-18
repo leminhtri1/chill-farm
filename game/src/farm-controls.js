@@ -4,9 +4,10 @@ import { app, input } from './app.js';
 import { play, toggleMute } from './audio.js';
 import { canFillRush, fillRush } from './challenges.js';
 import { crowAt, shoo } from './critters.js';
-import { actOnTile, describeTile } from './farm.js';
+import { actOnTile, describeTile, placeAt } from './farm.js';
 import { hotbarSlots } from './hud.js';
 import { openPanel } from './panels.js';
+import { reachable } from './restoration.js';
 import { toast } from './particles.js';
 import { facingTile, inReach, startAction } from './player.js';
 import { finishDay } from './season-flow.js';
@@ -33,6 +34,16 @@ export function actAt(c, r) {
     // a rush order that can be met is handed over the moment the farmer reaches the board
     if (canFillRush(game)) fillRush(game);
     app.ui = openPanel('board');
+    play('click');
+    return;
+  }
+  if (result === 'workshop') {
+    app.ui = openPanel('workshop');
+    play('click');
+    return;
+  }
+  if (result.startsWith('landmark:') || result.startsWith('villager:')) {
+    app.ui = openPanel(result.startsWith('landmark:') ? 'landmark' : 'friend', result.slice(9));
     play('click');
     return;
   }
@@ -86,6 +97,13 @@ export function handleFarmInput(presses, clicks, wheel) {
     }
     const tile = tileOf(click.x, click.y);
     if (!describeTile(game, tile.c, tile.r)) continue;
+    // the bakery is across the creek: until the bridge is fixed, show its panel from afar
+    const place = placeAt(game, tile.c, tile.r);
+    if (place === 'landmark:bakery' && !reachable(game, 'bakery')) {
+      app.ui = openPanel('landmark', 'bakery');
+      play('click');
+      continue;
+    }
     if (inReach(game, tile.c, tile.r)) {
       game.player.target = null;
       actAt(tile.c, tile.r);

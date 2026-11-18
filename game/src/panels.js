@@ -1,21 +1,30 @@
-// Pop-up panels: Hazel's market stall (sell, seeds, upgrades), the order board, help and pause.
+// Pop-up panels: Hazel's market stall (sell, seeds, upgrades), the order board, help and pause, plus
+// the workshop, restoration, villager and perk panels drawn by their own modules.
 // Each panel is a list of buttons, clickable with the mouse or walked with the arrow keys + Enter.
 import { drawProduce, drawSeedPacket } from './crop-art.js';
 import { PALETTE, roundRect } from './draw-kit.js';
 import { drawSprinklerIcon } from './icon-art.js';
 import { canFillRush, fillRush } from './challenges.js';
-import { CAN_CAPACITY, CROP_ORDER, CROPS, HOT_PICK_BONUS, PERFECT_BONUS, SPRINKLER, UPGRADES, VIEW } from './config.js';
+import { CAN_CAPACITY, CROP_ORDER, CROPS, HOT_PICK_BONUS, PERFECT_BONUS, PRESERVES, SPRINKLER, UPGRADES, VIEW } from './config.js';
 import {
   buySeeds, buySprinkler, buyUpgrade, placedSprinklers, seedAvailable, sellBasket, sellPrice, upgradePrice, basketValue,
 } from './market.js';
-import { canFill, fillOrder } from './orders.js';
+import { canFill, fillOrder, orderPay } from './orders.js';
 import { FONT, panel, text } from './hud.js';
-
-const BOX = { x: 160, y: 66, w: 640, h: 438 };
+import { BOX } from './panel-kit.js';
+import { drawFriendOver, drawFriendPanel, friendButtons } from './friend-panel.js';
+import { drawPerkOver, drawPerkPanel, perkButtons } from './perk-panel.js';
+import { jarPrice, pantryValue } from './preserves.js';
+import { drawRestorePanel, restoreButtons } from './restore-panel.js';
+import { drawWorkshopOver, drawWorkshopPanel, workshopButtons } from './workshop-panel.js';
+import { friendPay } from './villagers.js';
+import { drawPortrait } from './villager-art.js';
+import { drawJar } from './workshop-art.js';
 const SHOP_TABS = ['Sell', 'Seeds', 'Upgrades'];
 
-export function openPanel(kind) {
-  return { kind, tab: 0, cursor: 0 };
+/** A panel to open: kind is shop, board, help, pause, workshop, landmark, friend or perk; id names the landmark or villager. */
+export function openPanel(kind, id = null) {
+  return { kind, tab: 0, cursor: 0, id };
 }
 
 /** The buttons of the open panel: { x, y, w, h, label, enabled, run, hot }. */
@@ -36,6 +45,14 @@ export function panelButtons(game, ui) {
     if (game.rush) {
       buttons.push({ x: BOX.x + BOX.w - 196, y: BOX.y + 376, w: 166, h: 40, label: 'Deliver rush', enabled: canFillRush(game), hot: true, run: () => (fillRush(game) ? 'order' : 'error') });
     }
+  } else if (ui.kind === 'workshop') {
+    workshopButtons(game, buttons);
+  } else if (ui.kind === 'landmark') {
+    restoreButtons(game, ui, buttons);
+  } else if (ui.kind === 'friend') {
+    friendButtons(game, ui, buttons);
+  } else if (ui.kind === 'perk') {
+    perkButtons(game, buttons);
   } else if (ui.kind === 'pause') {
     const labels = [['Resume', 'close'], ['How to play', 'help'], ['Sound on / off', 'mute'], ['Quit to title', 'quit']];
     labels.forEach(([label, result], i) => {
@@ -44,7 +61,7 @@ export function panelButtons(game, ui) {
   } else if (ui.kind === 'help') {
     buttons.push({ x: VIEW.width / 2 - 110, y: BOX.y + BOX.h - 62, w: 220, h: 44, label: 'Got it!', enabled: true, run: () => 'close' });
   }
-  if (ui.kind !== 'pause') buttons.push(close);
+  if (ui.kind !== 'pause' && ui.kind !== 'perk') buttons.push(close);
   return buttons;
 }
 
@@ -53,12 +70,13 @@ function row(i) {
 }
 
 function sellButtons(game, buttons) {
-  const total = basketValue(game);
+  const total = basketValue(game) + pantryValue(game);
   buttons.push({ x: BOX.x + BOX.w - 230, y: BOX.y + 58, w: 210, h: 34, label: `Sell all  +${total}`, enabled: total > 0, hot: true, run: () => (sellBasket(game, null) ? 'sell' : 'error') });
   CROP_ORDER.forEach((kind, i) => {
     const count = game.basket[kind];
-    const value = game.perfectBasket[kind] * sellPrice(game, kind, true) + (count - game.perfectBasket[kind]) * sellPrice(game, kind, false);
-    buttons.push({ x: BOX.x + BOX.w - 150, y: row(i) + 6, w: 130, h: 36, label: count ? `Sell +${value}` : 'Sell', enabled: count > 0, run: () => (sellBasket(game, kind) ? 'sell' : 'error'), crop: kind });
+    const jars = game.goods[kind];
+    const value = game.perfectBasket[kind] * sellPrice(game, kind, true) + (count - game.perfectBasket[kind]) * sellPrice(game, kind, false) + jars * jarPrice(game, kind);
+    buttons.push({ x: BOX.x + BOX.w - 150, y: row(i) + 6, w: 130, h: 36, label: count + jars ? `Sell +${value}` : 'Sell', enabled: count + jars > 0, run: () => (sellBasket(game, kind) ? 'sell' : 'error'), crop: kind });
   });
 }
 
@@ -108,11 +126,18 @@ export function drawPanel(ctx, game, ui, t) {
   if (ui.kind === 'shop') drawShop(ctx, game, ui, t, buttons);
   if (ui.kind === 'board') drawBoardPanel(ctx, game, t);
   if (ui.kind === 'help') drawHelp(ctx);
+  if (ui.kind === 'workshop') drawWorkshopPanel(ctx, game, t);
+  if (ui.kind === 'landmark') drawRestorePanel(ctx, game, ui, t);
+  if (ui.kind === 'friend') drawFriendPanel(ctx, game, ui, t);
+  if (ui.kind === 'perk') drawPerkPanel(ctx, game, t);
   const focusable = buttons.filter((b) => b.tab === undefined && !b.close);
   buttons.forEach((b) => {
     if (b.tab !== undefined) b.selected = b.tab === ui.tab;
     drawButton(ctx, b, focusable[ui.cursor] === b);
   });
+  if (ui.kind === 'workshop') drawWorkshopOver(ctx, game, buttons, t);
+  if (ui.kind === 'friend') drawFriendOver(ctx, game, buttons, t);
+  if (ui.kind === 'perk') drawPerkOver(ctx, game, buttons, t);
 }
 
 function drawShop(ctx, game, ui, t) {
@@ -132,6 +157,10 @@ function drawShop(ctx, game, ui, t) {
       text(ctx, `${CROPS[kind].name}${hot}`, BOX.x + 76, y - 8, { size: 16, color: hot ? '#c0471a' : PALETTE.ink });
       const perfect = game.perfectBasket[kind];
       text(ctx, `${game.basket[kind]} in basket${perfect ? `, ${perfect} perfect` : ''}  ·  ${sellPrice(game, kind, false)}c each`, BOX.x + 76, y + 11, { size: 13, color: '#7a5a44', weight: 'normal' });
+      if (game.goods[kind]) {
+        drawJar(ctx, BOX.x + 352, y + 14, 26, PRESERVES.colors[kind], 1);
+        text(ctx, `${game.goods[kind]} x ${jarPrice(game, kind)}c`, BOX.x + 368, y + 2, { size: 13, color: '#a0660a' });
+      }
     });
     text(ctx, `Perfect crops (never left dry) sell for ${PERFECT_BONUS}x.`, BOX.x + 24, BOX.y + BOX.h - 20, { size: 13, color: '#7a5a44', weight: 'normal' });
   } else if (ui.tab === 1) {
@@ -194,11 +223,12 @@ function drawBoardPanel(ctx, game, t) {
     ctx.arc(0, -102, 5, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
-    text(ctx, order.from, x + 88, y + 26, { size: 16, align: 'center' });
+    if (order.friend) drawPortrait(ctx, order.friend, x + 28, y + 26, 17, t);
+    text(ctx, order.from, x + 98, y + 26, { size: 15, align: 'center' });
     drawProduce(ctx, order.kind, x + 88, y + 62, 40, t);
     text(ctx, `${order.qty} x ${CROPS[order.kind].name}`, x + 88, y + 118, { size: 17, align: 'center' });
     text(ctx, `have ${game.basket[order.kind]}`, x + 88, y + 140, { size: 13, align: 'center', color: canFill(game, order) ? '#2f7a3a' : '#a07a5a', weight: 'normal' });
-    text(ctx, `Pays ${order.reward}c`, x + 88, y + 168, { size: 18, align: 'center', color: '#a0660a' });
+    text(ctx, `Pays ${orderPay(game, order)}c`, x + 88, y + 168, { size: 18, align: 'center', color: '#a0660a' });
     text(ctx, order.days > 1 ? `${order.days} days left` : 'Last day!', x + 88, y + 192, { size: 13, align: 'center', color: order.days > 1 ? '#7a5a44' : '#c0471a', weight: 'normal' });
   });
   if (!game.orders.length) text(ctx, 'All done! New orders arrive tomorrow morning.', VIEW.width / 2, BOX.y + 200, { size: 18, align: 'center' });
@@ -209,7 +239,7 @@ function drawBoardPanel(ctx, game, t) {
     ctx.fill();
     drawProduce(ctx, rush.kind, BOX.x + 56, BOX.y + 390, 30, t);
     text(ctx, `Rush! ${rush.from}: ${rush.qty} x ${CROPS[rush.kind].name}, ${Math.ceil(rush.timer)}s left`, BOX.x + 84, BOX.y + 386, { size: 15, color: '#a33a2a' });
-    text(ctx, `Pays ${rush.reward}c · you have ${game.basket[rush.kind]}`, BOX.x + 84, BOX.y + 406, { size: 13, color: '#7a5a44', weight: 'normal' });
+    text(ctx, `Pays ${friendPay(game, rush.friend, rush.reward)}c · you have ${game.basket[rush.kind]}`, BOX.x + 84, BOX.y + 406, { size: 13, color: '#7a5a44', weight: 'normal' });
   } else {
     text(ctx, 'Rush orders pop up during the day: watch the bottom-right corner!', VIEW.width / 2, BOX.y + 396, { size: 13, align: 'center', color: '#a07a5a', weight: 'normal' });
   }
@@ -217,15 +247,15 @@ function drawBoardPanel(ctx, game, t) {
 
 const HELP_LINES = [
   ['Move', 'WASD or arrow keys, or click a tile to walk there'],
-  ['Act', 'Space / E or click a tile: till, plant, water, harvest. Hold and sweep for rows'],
-  ['Seeds', '1-6, Q / R or the mouse wheel pick seeds or a sprinkler'],
-  ['Water', 'Thirsty crops show a drop. Refill your can at the well'],
-  ['Sell', 'Visit the market stall: sell, buy seeds and upgrades'],
+  ['Act', 'Space / E or click: till, plant, water, harvest. Hold and sweep for rows'],
+  ['Seeds', '1-6, Q / R or the wheel. Water at the well. Sell at the stall'],
+  ['Jars', 'The workshop (left) cooks crops into jars worth 1.6x, even overnight'],
+  ['Restore', 'Donate crops at the hammer bubbles: pond, bridge, bakery'],
+  ['Friends', 'Talk to villagers: a liked gift a day earns hearts'],
+  ['Perks', 'Farm work earns XP. Each level, pick 1 of 2 perks'],
   ['Orders', 'The board pays extra. Rush orders (bottom right) pay 1.5x, fast!'],
-  ['Goals', "Meet each day's coin goal for a bonus. Crows grow bolder each day"],
-  ['Crows', 'Click them or walk up to shoo them off your crops'],
-  ['Sleep', 'Click the cottage door to end the day early'],
-  ['Pause', 'Esc or P pauses · M mutes the music'],
+  ['Goals', "Meet each day's coin goal for a bonus. Shoo crows with a click"],
+  ['Sleep', 'Click the cottage door to end the day · Esc pauses · M mutes'],
 ];
 
 function drawHelp(ctx) {
@@ -249,6 +279,7 @@ export function clickPanel(game, ui, x, y) {
       return b.run();
     }
   }
+  if (ui.kind === 'perk') return null;
   const inside = ui.kind === 'pause' ? Math.abs(x - VIEW.width / 2) < 170 && y > BOX.y + 30 && y < BOX.y + 360 : x >= BOX.x && x <= BOX.x + BOX.w && y >= BOX.y && y <= BOX.y + BOX.h;
   return inside ? null : 'close';
 }
@@ -256,7 +287,7 @@ export function clickPanel(game, ui, x, y) {
 /** Keyboard on a panel: arrows move the focus, Enter presses, Tab and left/right change tab. */
 export function keyPanel(game, ui, key) {
   const focusable = panelButtons(game, ui).filter((b) => b.tab === undefined && !b.close);
-  if (key === 'Escape') return 'close';
+  if (key === 'Escape') return ui.kind === 'perk' ? null : 'close';
   if (ui.kind === 'shop' && (key === 'Tab' || key === 'ArrowRight' || key === 'ArrowLeft')) {
     const dir = key === 'ArrowLeft' ? -1 : 1;
     ui.tab = (ui.tab + dir + SHOP_TABS.length) % SHOP_TABS.length;
