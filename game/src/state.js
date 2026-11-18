@@ -48,7 +48,11 @@ export function createGame(seed) {
       stuck: 0,
     },
     combo: { count: 0, timer: 0 },
-    stats: { harvested: 0, perfect: 0, orders: 0, crows: 0, eaten: 0, bestDay: 0, dayEarned: 0, planted: 0, golden: 0, bestCombo: 0 },
+    stats: { harvested: 0, perfect: 0, orders: 0, crows: 0, eaten: 0, bestDay: 0, dayEarned: 0, planted: 0, golden: 0, bestCombo: 0, dailyGoals: 0, rushFilled: 0, rushMissed: 0 },
+    /** Today's coin goal, the open rush order and when today's next rush orders arrive. */
+    daily: null,
+    rush: null,
+    rushPlan: [],
     /** Things that happened this step, for sounds, particles and toasts: { kind, x, y, text }. */
     events: [],
     terrain: [],

@@ -1,9 +1,14 @@
 // Draws the farm itself: meadow, paths and hedges (cached), the field plots and crops, buildings,
 // the farmer and critters sorted by depth, then the time-of-day light and the weather.
 import {
-  drawBoard, drawButterfly, drawChimneySmoke, drawCompost, drawCrop, drawCrow, drawFarmer, drawFlower,
-  drawHedge, drawHouse, drawPond, drawScarecrow, drawSprinkler, drawStall, drawTree, drawWell, PALETTE, roundRect,
-} from './art.js';
+  drawBoard, drawChimneySmoke, drawCompost, drawHouse, drawScarecrow, drawSprinkler, drawStall, drawWell,
+} from './building-art.js';
+import { drawButterfly, drawCrow } from './critter-art.js';
+import { drawCrop } from './crop-art.js';
+import { PALETTE, roundRect } from './draw-kit.js';
+import { drawFarmer } from './farmer-art.js';
+import { drawFlower, drawHedge, drawPond, drawTree } from './nature-art.js';
+import { canFillRush } from './challenges.js';
 import { COLS, PLACES, ROWS, TILE, VIEW, WORLD_Y } from './config.js';
 import { cropStage, isWet } from './farm.js';
 import { canFill } from './orders.js';
@@ -132,7 +137,7 @@ function standing(game, t, night) {
   const stall = at(PLACES.stall);
   list.push({ y: stall.y + PLACES.stall.h * TILE, draw: (ctx) => drawStall(ctx, stall.x, stall.y, PLACES.stall.w * TILE, PLACES.stall.h * TILE, t) });
   const board = at(PLACES.board);
-  const ready = game.orders.some((order) => canFill(game, order));
+  const ready = game.orders.some((order) => canFill(game, order)) || canFillRush(game);
   list.push({ y: board.y + TILE, draw: (ctx) => drawBoard(ctx, board.x, board.y + 4, t, ready) });
   const well = at(PLACES.well);
   list.push({ y: well.y + TILE, draw: (ctx) => drawWell(ctx, well.x, well.y + 2) });
@@ -151,7 +156,7 @@ function standing(game, t, night) {
     const cy = plot.r * TILE + WORLD_Y + TILE / 2;
     if (plot.crop) {
       const crop = plot.crop;
-      list.push({ y: cy + 12, draw: (ctx) => drawCrop(ctx, crop.kind, cropStage(crop), cx, cy, t, crop.wiggle) });
+      list.push({ y: cy + 12, draw: (ctx) => drawCrop(ctx, crop.kind, cropStage(crop), cx, cy, t, crop.wiggle, crop.golden) });
     }
     if (plot.sprinkler) {
       const spraying = plot.sprinkle > 11 ? Math.min(1, plot.sprinkle - 11) : 0;
@@ -174,6 +179,12 @@ export function nightAmount(game) {
   if (c < 0.06) return 0.35 * (1 - c / 0.06);
   if (c < 0.7) return 0;
   return Math.min(0.75, ((c - 0.7) / 0.3) * 0.75);
+}
+
+/** How strong the golden-hour light is (0..1): it rises after 2pm, peaks near 5pm and fades by dusk. */
+export function goldenHour(clock) {
+  if (clock < 0.48 || clock > 0.8) return 0;
+  return Math.sin(((clock - 0.48) / 0.32) * Math.PI) ** 1.5;
 }
 
 export function drawScene(ctx, game, t, hover) {
@@ -212,6 +223,22 @@ function drawLight(ctx, game, night, t) {
     ctx.fillStyle = 'rgba(60, 80, 120, 0.22)';
     ctx.fillRect(0, 0, VIEW.width, VIEW.height);
   }
+  // late afternoon: warm golden-hour light slanting in from the setting sun (top right)
+  const golden = goldenHour(game.clock);
+  if (golden > 0 && game.weather !== 'rain') {
+    ctx.save();
+    ctx.globalCompositeOperation = 'soft-light';
+    ctx.fillStyle = `rgba(255, 140, 40, ${0.75 * golden})`;
+    ctx.fillRect(0, 0, VIEW.width, VIEW.height);
+    ctx.restore();
+    const sun = ctx.createRadialGradient(VIEW.width + 40, -40, 20, VIEW.width + 40, -40, 760);
+    sun.addColorStop(0, `rgba(255, 236, 150, ${0.45 * golden})`);
+    sun.addColorStop(0.4, `rgba(255, 190, 90, ${0.26 * golden})`);
+    sun.addColorStop(1, `rgba(230, 120, 90, ${0.12 * golden})`);
+    ctx.fillStyle = sun;
+    ctx.fillRect(0, 0, VIEW.width, VIEW.height);
+    drawSunRays(ctx, golden, t);
+  }
   if (night > 0) {
     ctx.fillStyle = `rgba(30, 36, 92, ${night * 0.7})`;
     ctx.fillRect(0, 0, VIEW.width, VIEW.height);
@@ -231,6 +258,27 @@ function drawLight(ctx, game, night, t) {
     ctx.fillStyle = `rgba(255, 200, 140, ${0.12 * (1 - game.clock / 0.2)})`;
     ctx.fillRect(0, 0, VIEW.width, VIEW.height);
   }
+}
+
+/** Soft beams of evening sun slanting down from the top-right corner. */
+function drawSunRays(ctx, golden, t) {
+  ctx.save();
+  ctx.translate(VIEW.width + 60, -60);
+  ctx.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < 5; i += 1) {
+    const angle = 2.05 + i * 0.16 + Math.sin(t * 0.3 + i) * 0.01;
+    const width = 0.035 + (i % 2) * 0.025;
+    const beam = ctx.createLinearGradient(0, 0, Math.cos(angle) * 900, Math.sin(angle) * 900);
+    beam.addColorStop(0, `rgba(255, 220, 140, ${0.09 * golden})`);
+    beam.addColorStop(1, 'rgba(255, 220, 140, 0)');
+    ctx.fillStyle = beam;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.arc(0, 0, 1100, angle - width, angle + width);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.restore();
 }
 
 export function drawWeather(ctx, fx, game, t) {

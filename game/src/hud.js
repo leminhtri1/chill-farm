@@ -1,6 +1,8 @@
 // The heads-up display: day, clock and weather, coins, the festival goal bar, the watering can,
 // the basket, the seed hotbar, action hints and message toasts.
-import { drawCoin, drawDrop, drawProduce, drawSeedPacket, drawSprinklerIcon, PALETTE, roundRect } from './art.js';
+import { drawProduce, drawSeedPacket } from './crop-art.js';
+import { PALETTE, roundRect } from './draw-kit.js';
+import { drawCoin, drawDrop, drawSprinklerIcon } from './icon-art.js';
 import { CAN_CAPACITY, CROPS, HOT_PICK_BONUS, SEASON, VIEW } from './config.js';
 import { clockText } from './calendar.js';
 import { basketCount, basketValue, seedAvailable } from './market.js';

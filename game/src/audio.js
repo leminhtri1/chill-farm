@@ -139,6 +139,8 @@ const SOUNDS = {
   click: () => tone(880, 0, 0.05, { type: 'sine', volume: 0.12 }),
   late: () => [659, 523].forEach((f, i) => tone(f, i * 0.2, 0.4, { type: 'sine', volume: 0.18 })),
   goal: () => [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => tone(f, i * 0.1, 0.35, { volume: 0.25 })),
+  rush: () => [1175, 1568, 1175, 1568].forEach((f, i) => tone(f, i * 0.09, 0.14, { type: 'triangle', volume: 0.16 })),
+  daily: () => [659, 784, 988, 1319].forEach((f, i) => tone(f, i * 0.07, 0.28, { type: 'sine', volume: 0.22 })),
   night: () => [784, 659, 523, 392].forEach((f, i) => tone(f, i * 0.18, 0.5, { type: 'sine', volume: 0.2 })),
   morning: () => [392, 523, 659, 784].forEach((f, i) => tone(f, i * 0.12, 0.4, { type: 'sine', volume: 0.2 })),
   fanfare: () => [523, 523, 659, 784, 659, 784, 1047].forEach((f, i) => tone(f, i * 0.13, 0.4, { volume: 0.28 })),

@@ -99,6 +99,28 @@ export const CROWS = {
   peck: [7, 5, 3.5],
   /** Coins for shooing one. */
   shooReward: 4,
+  /** From this day crows may arrive in flocks, and flocks grow later in the season. */
+  flockFromDay: 4,
+  flockChance: 0.3,
+};
+
+/**
+ * Daily goals: each morning sets a target for the coins earned that day, rising through the
+ * season (goal = base + perDay * day + perDaySq * day^2). Meeting it pays a share of the goal.
+ */
+export const DAILY = { base: 40, perDay: 50, perDaySq: 14, bonusShare: 0.12 };
+
+/**
+ * Rush orders: a neighbour needs crops right now. They start on day 2, come more often later, and
+ * pay half as much again, but only for a short time (game seconds: base + perItem for each crop asked).
+ */
+export const RUSH = {
+  perDay: [0, 1, 1, 1, 2, 2, 2, 3, 3, 3],
+  markup: 1.5,
+  tip: 10,
+  seconds: 30,
+  perItem: 7,
+  maxQty: 4,
 };
 
 export const ORDERS = {

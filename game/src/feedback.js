@@ -41,6 +41,11 @@ export function applyEvents(game, fx) {
         toast(fx, e.text, 'gold');
         play('golden');
         break;
+      case 'ripe-golden':
+        burst(fx, e.x, e.y - 6, 'star', 14);
+        floatText(fx, e.x, e.y - 30, 'Golden!', '#ffe066');
+        play('ripe');
+        break;
       case 'ripe':
         burst(fx, e.x, e.y - 6, 'star', 5);
         play('ripe');
@@ -95,6 +100,19 @@ export function applyEvents(game, fx) {
       case 'sprinkle':
         burst(fx, e.x, e.y - 6, 'water', 10);
         play('sprinkle');
+        break;
+      case 'daily':
+        burst(fx, e.x, e.y, 'star', 24);
+        toast(fx, e.text, 'good');
+        play('daily');
+        break;
+      case 'rush':
+        toast(fx, e.text, 'gold');
+        play('rush');
+        break;
+      case 'rush-missed':
+        toast(fx, e.text, 'bad');
+        play('error');
         break;
       case 'late':
         toast(fx, e.text, 'gold');

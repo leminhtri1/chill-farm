@@ -133,8 +133,9 @@ function harvest(game, plot) {
     earn(game, tip);
     emit(game, 'combo', at.x, at.y - 34, `Combo x${game.combo.count}  +${tip}`);
   }
-  // now and then a crop comes up golden
-  if (game.rng.chance(GOLDEN.chance)) {
+  // a crop that ripened golden pays a bonus on top
+  if (crop.golden) {
+    crop.golden = false;
     const bonus = Math.round(info.price * GOLDEN.bonus);
     earn(game, bonus);
     game.stats.golden += 1;
@@ -164,7 +165,7 @@ export function describeTile(game, c, r) {
   const plot = plotAt(game, c, r);
   if (!plot.tilled) return 'Till the soil';
   const crop = plot.crop;
-  if (crop && crop.ripe) return `Harvest ${CROPS[crop.kind].name}`;
+  if (crop && crop.ripe) return `Harvest ${crop.golden ? 'golden ' : ''}${CROPS[crop.kind].name}`;
   if (crop) {
     const pct = Math.round(crop.growth * 100);
     return crop.water > 0 ? `${CROPS[crop.kind].name}: ${pct}% grown` : `Water ${CROPS[crop.kind].name}`;
@@ -203,8 +204,10 @@ export function updateField(game, dt) {
         crop.growth = 1;
         crop.ripe = true;
         crop.wiggle = 1;
+        // now and then a crop ripens golden: it glows in the field until harvested
+        crop.golden = game.rng.chance(GOLDEN.chance);
         const at = tileCenter(plot.c, plot.r);
-        emit(game, 'ripe', at.x, at.y);
+        emit(game, crop.golden ? 'ripe-golden' : 'ripe', at.x, at.y, crop.golden ? `A golden ${CROPS[crop.kind].name} ripened!` : '');
       } else if (cropStage(crop) !== before) {
         crop.wiggle = 1;
       }

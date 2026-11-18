@@ -1,6 +1,9 @@
 // Pop-up panels: Hazel's market stall (sell, seeds, upgrades), the order board, help and pause.
 // Each panel is a list of buttons, clickable with the mouse or walked with the arrow keys + Enter.
-import { drawProduce, drawSeedPacket, drawSprinklerIcon, PALETTE, roundRect } from './art.js';
+import { drawProduce, drawSeedPacket } from './crop-art.js';
+import { PALETTE, roundRect } from './draw-kit.js';
+import { drawSprinklerIcon } from './icon-art.js';
+import { canFillRush, fillRush } from './challenges.js';
 import { CAN_CAPACITY, CROP_ORDER, CROPS, HOT_PICK_BONUS, PERFECT_BONUS, SPRINKLER, UPGRADES, VIEW } from './config.js';
 import {
   buySeeds, buySprinkler, buyUpgrade, placedSprinklers, seedAvailable, sellBasket, sellPrice, upgradePrice, basketValue,
@@ -30,6 +33,9 @@ export function panelButtons(game, ui) {
     game.orders.forEach((order, i) => {
       buttons.push({ x: BOX.x + 30 + i * 196, y: BOX.y + 318, w: 176, h: 40, label: 'Deliver', enabled: canFill(game, order), run: () => (fillOrder(game, i) ? 'order' : 'error') });
     });
+    if (game.rush) {
+      buttons.push({ x: BOX.x + BOX.w - 196, y: BOX.y + 376, w: 166, h: 40, label: 'Deliver rush', enabled: canFillRush(game), hot: true, run: () => (fillRush(game) ? 'order' : 'error') });
+    }
   } else if (ui.kind === 'pause') {
     const labels = [['Resume', 'close'], ['How to play', 'help'], ['Sound on / off', 'mute'], ['Quit to title', 'quit']];
     labels.forEach(([label, result], i) => {
@@ -196,6 +202,17 @@ function drawBoardPanel(ctx, game, t) {
     text(ctx, order.days > 1 ? `${order.days} days left` : 'Last day!', x + 88, y + 192, { size: 13, align: 'center', color: order.days > 1 ? '#7a5a44' : '#c0471a', weight: 'normal' });
   });
   if (!game.orders.length) text(ctx, 'All done! New orders arrive tomorrow morning.', VIEW.width / 2, BOX.y + 200, { size: 18, align: 'center' });
+  const rush = game.rush;
+  if (rush) {
+    roundRect(ctx, BOX.x + 24, BOX.y + 368, BOX.w - 48, 56, 12);
+    ctx.fillStyle = 'rgba(255, 214, 180, 0.9)';
+    ctx.fill();
+    drawProduce(ctx, rush.kind, BOX.x + 56, BOX.y + 390, 30, t);
+    text(ctx, `Rush! ${rush.from}: ${rush.qty} x ${CROPS[rush.kind].name}, ${Math.ceil(rush.timer)}s left`, BOX.x + 84, BOX.y + 386, { size: 15, color: '#a33a2a' });
+    text(ctx, `Pays ${rush.reward}c · you have ${game.basket[rush.kind]}`, BOX.x + 84, BOX.y + 406, { size: 13, color: '#7a5a44', weight: 'normal' });
+  } else {
+    text(ctx, 'Rush orders pop up during the day: watch the bottom-right corner!', VIEW.width / 2, BOX.y + 396, { size: 13, align: 'center', color: '#a07a5a', weight: 'normal' });
+  }
 }
 
 const HELP_LINES = [
@@ -204,7 +221,8 @@ const HELP_LINES = [
   ['Seeds', '1-6, Q / R or the mouse wheel pick seeds or a sprinkler'],
   ['Water', 'Thirsty crops show a drop. Refill your can at the well'],
   ['Sell', 'Visit the market stall: sell, buy seeds and upgrades'],
-  ['Orders', 'The board by the stall pays extra for crops'],
+  ['Orders', 'The board pays extra. Rush orders (bottom right) pay 1.5x, fast!'],
+  ['Goals', "Meet each day's coin goal for a bonus. Crows grow bolder each day"],
   ['Crows', 'Click them or walk up to shoo them off your crops'],
   ['Sleep', 'Click the cottage door to end the day early'],
   ['Pause', 'Esc or P pauses · M mutes the music'],
@@ -214,7 +232,7 @@ function drawHelp(ctx) {
   text(ctx, 'How to farm', BOX.x + 24, BOX.y + 30, { size: 24 });
   text(ctx, 'Earn coins over 10 days. Reach the Harvest Festival goal for a ribbon!', BOX.x + 24, BOX.y + 60, { size: 15, color: '#7a5a44' });
   HELP_LINES.forEach(([key, line], i) => {
-    const y = BOX.y + 92 + i * 30;
+    const y = BOX.y + 92 + i * 29;
     roundRect(ctx, BOX.x + 24, y - 11, 74, 22, 8);
     ctx.fillStyle = '#f6c25a';
     ctx.fill();

@@ -20,14 +20,22 @@ node serve.ts   # then open http://localhost:8080 in Chrome
 - **Seeds:** 1–6, Q / R or the mouse wheel pick a seed packet or a sprinkler on the hotbar.
 - **Water:** refill the can at the well. A crop that never goes dry is *Perfect* and sells for more.
 - **Market:** sell your basket, buy seeds, sprinklers and upgrades (Bigger Field, Watering Can, Compost Heap, Scarecrow, Comfy Boots). Each day has a *Hot pick* crop that sells for 1.5x.
-- **Orders:** the village board pays extra for baskets of crops, for a few days only.
-- **Crows** land on your crops: click them or walk up to shoo them before they eat.
-- Quick harvests build a **combo**, and now and then a crop comes up **golden**.
+- **Orders:** the village board pays extra for baskets of crops, for a few days only. From day 2, neighbours also post timed **rush orders** (bottom right of the screen) that pay 1.5x if you bring the crops to the board before the timer runs out. They come more often as the festival nears.
+- **Day goals:** every morning sets a coin goal for the day that rises through the season. Meet it for a bonus.
+- **Crows** land on your crops: click them or walk up to shoo them before they eat. They grow bolder each day, and from day 4 they arrive in flocks. They love golden crops best.
+- Quick harvests build a **combo**, and now and then a crop ripens **golden**. It glows in the field and pays a big bonus when harvested.
 - Esc / P pauses, H shows help, M mutes. Rainy days water everything for you.
 
 ## How it is built
 
-`game/` is the whole game: `index.html` and plain ES modules under `game/src/`, each with one job: `config.js` (balance), `state.js`, `farm.js` (field rules), `market.js`, `orders.js`, `critters.js`, `calendar.js`, `player.js`, `art.js` (every sprite drawn with canvas shapes), `scene.js`, `hud.js`, `panels.js`, `screens.js`, `particles.js`, `feedback.js`, `audio.js`, `input.js`, `tutorial.js` and `main.js` (the loop). `main.ts` hands the game and its screenshots in for the make.fun bounty and writes `dossier.json` with the kit's `vendor/makefun-game.ts`:
+`game/` is the whole game: `index.html` and plain ES modules under `game/src/`, each with one job:
+
+- **Rules:** `config.js` (every balance number), `state.js` (a new season and map helpers), `farm.js` (till, plant, water, grow, harvest), `market.js`, `orders.js` (the village board), `challenges.js` (day goals, rush orders, crow flocks), `critters.js` (crows and butterflies), `calendar.js` (clock, weather, mornings) and `player.js` (walking and reach).
+- **Art:** every sprite is drawn with canvas shapes. `draw-kit.js` holds shared helpers, then `farmer-art.js`, `crop-art.js`, `building-art.js`, `nature-art.js`, `critter-art.js`, `icon-art.js` and `festival-art.js` (lanterns and fireworks).
+- **Screen:** `scene.js` (the farm, light and weather), `hud.js`, `challenge-hud.js`, `play-overlays.js`, `panels.js`, `screens.js` (title, day card, results), `particles.js`, `feedback.js` (events to sounds and effects) and `render.js`.
+- **App:** `app.js` (shared state), `title-farm.js`, `season-flow.js`, `farm-controls.js`, `panel-controls.js`, `input.js`, `game-update.js`, `audio.js`, `best-score.js`, `tutorial.js` and `main.js` (the loop).
+
+`main.ts` hands the game and its screenshots in for the make.fun bounty and writes `dossier.json` with the kit's `vendor/makefun-game.ts`:
 
 ```sh
 mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts

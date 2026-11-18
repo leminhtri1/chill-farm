@@ -3,6 +3,7 @@ import { SEASON, WEATHER } from './config.js';
 import { overnight } from './farm.js';
 import { rollHotPick } from './market.js';
 import { ageOrders, refillOrders } from './orders.js';
+import { startChallenges } from './challenges.js';
 import { emit } from './state.js';
 
 /** Clock as hours (6.0 .. 22.0) for the HUD. */
@@ -45,6 +46,7 @@ export function startSeason(game) {
   game.tomorrow = rollWeather(game);
   game.hotPick = 'turnip';
   refillOrders(game);
+  startChallenges(game);
 }
 
 /** Night falls: the day's summary is kept and the next morning is set up. */
@@ -54,7 +56,10 @@ export function endDay(game) {
     earned: game.stats.dayEarned,
     weather: game.tomorrow,
     last: game.day >= SEASON.days,
+    dailyGoal: game.daily ? game.daily.goal : 0,
+    dailyDone: !!(game.daily && game.daily.done),
   };
+  game.rush = null;
   game.stats.bestDay = Math.max(game.stats.bestDay, game.stats.dayEarned);
   return summary;
 }
@@ -70,6 +75,7 @@ export function startNextDay(game) {
   overnight(game);
   rollHotPick(game);
   ageOrders(game);
+  startChallenges(game);
   const p = game.player;
   p.x = 2.5 * 48;
   p.y = 4 * 48 + 6;

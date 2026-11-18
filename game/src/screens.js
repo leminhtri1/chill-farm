@@ -1,6 +1,10 @@
-// The full-screen moments: the title, the cosy end-of-day card, and the Harvest Festival results.
-import { drawCoin, drawProduce, drawRibbon, roundRect } from './art.js';
-import { CROP_ORDER, CROPS, SEASON, VIEW } from './config.js';
+// The full-screen moments: the title over the golden-hour farm, the cosy end-of-day card, and the
+// Harvest Festival results under fireworks.
+import { roundRect } from './draw-kit.js';
+import { drawCoin, drawRibbon } from './icon-art.js';
+import { SEASON, VIEW } from './config.js';
+import { drawStar } from './challenge-hud.js';
+import { drawFestivalNight } from './festival-art.js';
 import { drawWeatherIcon, panel, text } from './hud.js';
 
 export function ribbonFor(earned) {
@@ -9,23 +13,64 @@ export function ribbonFor(earned) {
   return 'green';
 }
 
-/** The title screen, drawn over a gently animated farm. Returns the Start button's rectangle. */
+/** The title screen over the golden-hour farm: a hanging sign, the goal and the Start button. */
 export function drawTitle(ctx, t, best) {
-  ctx.fillStyle = 'rgba(255, 236, 200, 0.18)';
+  // gentle shade at the top and bottom so the words stay readable over the busy field
+  const shade = ctx.createLinearGradient(0, 0, 0, VIEW.height);
+  shade.addColorStop(0, 'rgba(60, 30, 10, 0.32)');
+  shade.addColorStop(0.28, 'rgba(60, 30, 10, 0)');
+  shade.addColorStop(0.8, 'rgba(60, 30, 10, 0)');
+  shade.addColorStop(1, 'rgba(60, 30, 10, 0.5)');
+  ctx.fillStyle = shade;
   ctx.fillRect(0, 0, VIEW.width, VIEW.height);
-  const bob = Math.sin(t * 1.6) * 4;
-  // the logo: a wooden sign with leafy corners
+  drawLogo(ctx, t);
+
+  const button = { x: VIEW.width / 2 - 120, y: 448, w: 240, h: 56 };
+  const pulse = 1 + Math.sin(t * 4) * 0.03;
   ctx.save();
-  ctx.translate(VIEW.width / 2, 150 + bob);
-  ctx.rotate(Math.sin(t * 0.8) * 0.015);
-  panel(ctx, -250, -70, 500, 140, '#c98d55', 26);
-  roundRect(ctx, -236, -58, 472, 116, 20);
+  ctx.translate(VIEW.width / 2, button.y + button.h / 2);
+  ctx.scale(pulse, pulse);
+  panel(ctx, -120, -28, 240, 56, '#7fcf6e', 28);
+  text(ctx, 'Start farming', 0, 1, { size: 24, align: 'center', color: '#1f4a24' });
+  ctx.restore();
+
+  panel(ctx, 24, 456, 300, 40, 'rgba(255, 246, 224, 0.95)', 20);
+  text(ctx, '10 days until the Harvest Festival', 174, 476.5, { size: 16, align: 'center' });
+  panel(ctx, 636, 456, 300, 40, 'rgba(255, 246, 224, 0.95)', 20);
+  drawRibbon(ctx, 664, 468, 16, 'blue');
+  text(ctx, `${SEASON.goal.toLocaleString('en')}`, 682, 476.5, { size: 17, color: '#2f5fa8' });
+  drawRibbon(ctx, 786, 468, 16, 'gold');
+  text(ctx, `${SEASON.goldGoal.toLocaleString('en')} coins`, 804, 476.5, { size: 17, color: '#a0660a' });
+  text(ctx, 'Click or press Enter  ·  H for how to play  ·  M to mute', VIEW.width / 2, 524, { size: 13, align: 'center', color: '#fff6e0' });
+  if (best > 0) {
+    panel(ctx, 12, 10, 150, 34, 'rgba(255, 246, 224, 0.92)', 12);
+    drawRibbon(ctx, 32, 22, 14, ribbonFor(best));
+    text(ctx, `Best: ${best}`, 50, 27.5, { size: 15 });
+  }
+  return button;
+}
+
+/** The wooden "Chill Farm" sign hanging from two ropes, swaying a little. */
+function drawLogo(ctx, t) {
+  ctx.save();
+  ctx.translate(VIEW.width / 2, 84 + Math.sin(t * 1.6) * 3);
+  ctx.rotate(Math.sin(t * 0.8) * 0.012);
+  ctx.strokeStyle = '#7a4a2a';
+  ctx.lineWidth = 3;
+  for (const x of [-170, 170]) {
+    ctx.beginPath();
+    ctx.moveTo(x, -90);
+    ctx.lineTo(x, -50);
+    ctx.stroke();
+  }
+  panel(ctx, -225, -56, 450, 118, '#c98d55', 26);
+  roundRect(ctx, -212, -45, 424, 96, 20);
   ctx.fillStyle = '#e3b07a';
   ctx.fill();
-  for (const [lx, flip] of [[-240, 1], [240, -1]]) {
+  for (const [lx, flip] of [[-222, 1], [222, -1]]) {
     for (let i = 0; i < 3; i += 1) {
       ctx.save();
-      ctx.translate(lx, -60);
+      ctx.translate(lx, -50);
       ctx.rotate(flip * (0.4 + i * 0.5));
       ctx.beginPath();
       ctx.ellipse(0, -14, 8, 16, 0, 0, Math.PI * 2);
@@ -34,44 +79,17 @@ export function drawTitle(ctx, t, best) {
       ctx.restore();
     }
   }
-  ctx.font = `bold 72px "Trebuchet MS", "Segoe UI", sans-serif`;
+  ctx.font = `bold 66px "Trebuchet MS", "Segoe UI", sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
+  ctx.lineJoin = 'round';
   ctx.lineWidth = 10;
   ctx.strokeStyle = '#7a4a2a';
-  ctx.strokeText('Chill Farm', 0, -6);
+  ctx.strokeText('Chill Farm', 0, -8);
   ctx.fillStyle = '#fff6e0';
-  ctx.fillText('Chill Farm', 0, -6);
-  text(ctx, 'grow · water · harvest · relax', 0, 46, { size: 18, align: 'center', color: '#7a4a2a' });
+  ctx.fillText('Chill Farm', 0, -8);
+  text(ctx, 'grow · water · harvest · relax', 0, 38, { size: 17, align: 'center', color: '#7a4a2a' });
   ctx.restore();
-
-  panel(ctx, VIEW.width / 2 - 280, 238, 560, 152, 'rgba(255, 246, 224, 0.96)', 18);
-  CROP_ORDER.forEach((kind, i) => {
-    const x = VIEW.width / 2 - 200 + i * 100;
-    drawProduce(ctx, kind, x, 262 + Math.sin(t * 2 + i) * 3, 34, t);
-    text(ctx, CROPS[kind].name, x, 300, { size: 12, align: 'center', color: '#7a5a44' });
-  });
-  text(ctx, 'You have 10 days before the Harvest Festival.', VIEW.width / 2, 334, { size: 17, align: 'center' });
-  text(ctx, `Earn ${SEASON.goal} coins for the blue ribbon, ${SEASON.goldGoal} for gold!`, VIEW.width / 2, 362, { size: 15, align: 'center', color: '#7a5a44' });
-
-  const button = { x: VIEW.width / 2 - 120, y: 404, w: 240, h: 54 };
-  const pulse = 1 + Math.sin(t * 4) * 0.03;
-  ctx.save();
-  ctx.translate(VIEW.width / 2, button.y + button.h / 2);
-  ctx.scale(pulse, pulse);
-  panel(ctx, -120, -27, 240, 54, '#7fcf6e', 27);
-  text(ctx, 'Start farming', 0, 1, { size: 22, align: 'center', color: '#1f4a24' });
-  ctx.restore();
-  roundRect(ctx, VIEW.width / 2 - 210, 466, 420, 24, 12);
-  ctx.fillStyle = 'rgba(74, 52, 40, 0.72)';
-  ctx.fill();
-  text(ctx, 'Click or press Enter  ·  H for how to play  ·  M to mute', VIEW.width / 2, 478.5, { size: 14, align: 'center', color: '#fff6e0' });
-  if (best > 0) {
-    panel(ctx, VIEW.width - 200, 64, 188, 40, 'rgba(255, 246, 224, 0.92)', 12);
-    drawRibbon(ctx, VIEW.width - 178, 80, 18, ribbonFor(best));
-    text(ctx, `Best: ${best}`, VIEW.width - 154, 84, { size: 16 });
-  }
-  return button;
 }
 
 /** The end-of-day card. Returns the Continue button's rectangle. */
@@ -112,16 +130,18 @@ export function drawDaySummary(ctx, summary, game, t) {
   ctx.fillStyle = game.goalReached ? '#5f9ff0' : '#7fcf6e';
   ctx.fill();
   text(ctx, `Festival: ${game.earned} / ${SEASON.goal}`, VIEW.width / 2, 266, { size: 12, align: 'center', color: '#3c2a20' });
+  drawStar(ctx, VIEW.width / 2 - 120, 290, 9, summary.dailyDone ? '#ffcf40' : '#e6d3ae');
+  text(ctx, summary.dailyDone ? `Day goal of ${summary.dailyGoal} met: bonus paid!` : `Day goal of ${summary.dailyGoal} missed. Tomorrow!`, VIEW.width / 2 - 104, 290, { size: 14, color: summary.dailyDone ? '#2f7a3a' : '#a07a5a' });
   if (summary.last) {
-    text(ctx, 'Tomorrow is the Harvest Festival!', VIEW.width / 2, 314, { size: 18, align: 'center', color: '#a0660a' });
+    text(ctx, 'Tomorrow is the Harvest Festival!', VIEW.width / 2, 324, { size: 18, align: 'center', color: '#a0660a' });
   } else {
     const daysLeft = SEASON.days - summary.day;
-    drawWeatherIcon(ctx, summary.weather, VIEW.width / 2 - 110, 312, 12, t);
+    drawWeatherIcon(ctx, summary.weather, VIEW.width / 2 - 110, 322, 12, t);
     const name = { sunny: 'sunny', rain: 'rainy (crops water themselves)', breeze: 'breezy' }[summary.weather];
-    text(ctx, `Tomorrow looks ${name}`, VIEW.width / 2 - 88, 314, { size: 15, color: '#4a3428' });
-    text(ctx, `${daysLeft} day${daysLeft > 1 ? 's' : ''} until the festival`, VIEW.width / 2, 344, { size: 14, align: 'center', color: '#7a5a44', weight: 'normal' });
+    text(ctx, `Tomorrow looks ${name}`, VIEW.width / 2 - 88, 324, { size: 15, color: '#4a3428' });
+    text(ctx, `${daysLeft} day${daysLeft > 1 ? 's' : ''} until the festival`, VIEW.width / 2, 348, { size: 14, align: 'center', color: '#7a5a44', weight: 'normal' });
   }
-  const button = { x: VIEW.width / 2 - 110, y: 368, w: 220, h: 46 };
+  const button = { x: VIEW.width / 2 - 110, y: 370, w: 220, h: 46 };
   panel(ctx, button.x, button.y, button.w, button.h, '#7fcf6e', 23);
   text(ctx, summary.last ? 'To the festival!' : 'Good morning!', VIEW.width / 2, button.y + 24, { size: 19, align: 'center', color: '#1f4a24' });
   return button;
@@ -129,20 +149,7 @@ export function drawDaySummary(ctx, summary, game, t) {
 
 /** The Harvest Festival results: ribbon, score and stats. Returns the Play Again button. */
 export function drawResults(ctx, game, best, isBest, t) {
-  ctx.fillStyle = 'rgba(255, 228, 180, 0.55)';
-  ctx.fillRect(0, 0, VIEW.width, VIEW.height);
-  // bunting across the top
-  for (let i = 0; i < 16; i += 1) {
-    const x = i * 62 + 10;
-    const y = 18 + Math.sin(i * 0.6) * 6;
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.lineTo(x + 40, y);
-    ctx.lineTo(x + 20, y + 30);
-    ctx.closePath();
-    ctx.fillStyle = ['#ff8fb1', '#ffcf40', '#7fcf6e', '#5f9ff0'][i % 4];
-    ctx.fill();
-  }
+  drawFestivalNight(ctx, t);
   const ribbon = ribbonFor(game.earned);
   panel(ctx, VIEW.width / 2 - 300, 60, 600, 420, 'rgba(255, 246, 224, 0.98)', 22);
   text(ctx, 'Harvest Festival Results', VIEW.width / 2, 98, { size: 30, align: 'center' });
@@ -162,8 +169,8 @@ export function drawResults(ctx, game, best, isBest, t) {
     ['Perfect crops', game.stats.perfect],
     ['Orders filled', game.stats.orders],
     ['Golden crops', game.stats.golden],
+    ['Day goals met', `${game.stats.dailyGoals} / ${SEASON.days}`],
     ['Best combo', `x${game.stats.bestCombo}`],
-    ['Crows shooed', game.stats.crows],
   ];
   stats.forEach(([label, value], i) => {
     const x = VIEW.width / 2 - 260 + (i % 2) * 270;

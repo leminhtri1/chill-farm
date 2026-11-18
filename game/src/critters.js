@@ -2,6 +2,7 @@
 // that drift over the flowers just to be pretty.
 import { CROPS, CROWS, VIEW } from './config.js';
 import { earn } from './market.js';
+import { flockSize } from './challenges.js';
 import { emit, forEachPlot, tileCenter } from './state.js';
 
 export function updateCrows(game, dt) {
@@ -12,7 +13,8 @@ export function updateCrows(game, dt) {
     if (game.crowTimer <= 0) {
       // crows grow bolder as the season goes on
       game.crowTimer = CROWS.interval[level] * (1.1 - game.day * 0.04) * game.rng.range(0.7, 1.3);
-      spawnCrow(game);
+      const flock = flockSize(game);
+      for (let i = 0; i < flock; i += 1) spawnCrow(game, i);
     }
   }
   const player = game.player;
@@ -62,19 +64,21 @@ export function updateCrows(game, dt) {
   game.crows = game.crows.filter((crow) => !crow.gone);
 }
 
-function spawnCrow(game) {
+function spawnCrow(game, index = 0) {
   const taken = new Set(game.crows.map((crow) => crow.plot));
   const targets = [];
   forEachPlot(game, (plot) => {
     if (plot.crop && plot.crop.growth > 0.3 && !taken.has(plot)) targets.push(plot);
   });
   if (!targets.length) return;
-  const plot = game.rng.pick(targets);
+  // crows love a golden crop best
+  const golden = targets.filter((plot) => plot.crop.golden);
+  const plot = golden.length && game.rng.chance(0.6) ? game.rng.pick(golden) : game.rng.pick(targets);
   const at = tileCenter(plot.c, plot.r);
   const fromLeft = game.rng.chance(0.5);
   game.crows.push({
     x: fromLeft ? -30 : VIEW.width + 30,
-    y: game.rng.range(40, 200),
+    y: game.rng.range(40, 200) + index * 26,
     tx: at.x,
     ty: at.y - 6,
     face: fromLeft ? 1 : -1,
